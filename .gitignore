@@ -1,0 +1,12 @@
+# Ambiente
+.env
+.env.*
+!.env.example
+
+# Editores / SO
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.iml
+.DS_Store
+Thumbs.db
