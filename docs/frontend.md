@@ -15,17 +15,20 @@ src/
 ├── components/
 │   ├── ui/                  design system: GlassCard, Button, Field, Select, Sheet,
 │   │                        SegmentedControl, Toast, CategoryIcon, Feedback
-│   └── layout/              AppLayout, BottomNav, PageHeader, AmbientBackground
+│   └── layout/              AppLayout, Sidebar, TopBar, BottomNav, PageHeader
+├── data/                    camada de dados local (ver architecture.md)
 ├── features/                uma pasta por funcionalidade
-│   ├── auth/                api.ts, AuthContext, RequireAuth, Login/Register
+│   ├── profile/             ProfileContext, RequireProfile, boas-vindas, backup
 │   ├── dashboard/           api.ts, DashboardPage, BalanceCard, gráficos
 │   ├── transactions/        api.ts, página, formulário, contexto do formulário global
+│   ├── creditcards/         api.ts, página de cartões e faturas, formulário
+│   ├── recurring/           api.ts, página e formulário de lançamentos fixos
 │   ├── budgets/             api.ts, página, formulário, barra de progresso/status
 │   ├── categories/          api.ts, página, formulário
-│   └── settings/            página de ajustes
-├── lib/                     http.ts, session.ts, format.ts, month.ts, queryKeys.ts
+│   └── settings/            ajustes: perfil, backup, apagar dados, tema
+├── lib/                     format.ts, month.ts, creditCard.ts, queryKeys.ts
 ├── styles/index.css         tokens e componentes Liquid Glass
-└── types/api.ts             contrato da API (espelha os DTOs do back-end)
+└── types/api.ts             tipos que as telas consomem (devolvidos por data/)
 ```
 
 **Regra de dependência:** `features/*` podem usar `components/`, `lib/`,
@@ -36,28 +39,39 @@ de outra o que é público e estável (ex.: `TransactionRow`, `useCategories`).
 
 | Tipo de estado | Ferramenta | Exemplos |
 |---|---|---|
-| Dados do servidor | **TanStack Query** | lançamentos, orçamentos, dashboard |
-| Estado global de UI | **Context API** | sessão, tema, mês de referência, formulário de lançamento, toasts |
+| Dados (de `src/data`) | **TanStack Query** | lançamentos, orçamentos, dashboard, perfil |
+| Estado global de UI | **Context API** | perfil, tema, mês de referência, formulário de lançamento, toasts |
 | Estado local | `useState` | campos de formulário, filtros |
 
-- Cada feature expõe em `api.ts` as **funções HTTP** e os **hooks** (`useX`,
-  `useSaveX`, `useDeleteX`).
+- Cada feature expõe em `api.ts` os **hooks** (`useX`, `useSaveX`,
+  `useDeleteX`), que chamam as funções de `src/data`.
 - As chaves de cache ficam centralizadas em `lib/queryKeys.ts`. Mutations
   invalidam todas as visões afetadas (ex.: criar um lançamento invalida
   lançamentos, orçamentos e dashboard).
-- `lib/http.ts` é o único ponto de acesso à rede: adiciona o token, serializa
-  JSON, converte erros Problem Details em `ApiError` (com `fieldErrors`) e
-  encerra a sessão quando recebe `401`.
-- A sessão (token + usuário) fica em `localStorage`, isolada em
-  `lib/session.ts`; o logout automático acontece na expiração do token.
+- Erros de regra chegam como `AppError` (`data/errors.ts`), com `status` e
+  `fieldErrors` por campo — os formulários mostram a mensagem no campo certo.
+- `ProfileProvider` carrega o perfil (e, com ele, o banco local) antes de
+  mostrar o app, e invalida todo o cache quando outra aba altera os dados.
 
 ## Navegação
 
-- Rotas públicas (`/login`, `/register`) e protegidas (demais) via
-  `GuestOnly` / `RequireAuth`.
-- **Barra inferior** (`BottomNav`): Início · Lançamentos · **+** · Orçamentos ·
-  Ajustes. O botão central abre o formulário de lançamento global
+- No primeiro acesso, `RequireProfile` leva a `/welcome` (nome ou restaurar
+  backup); depois disso, `FirstAccessOnly` manda direto ao app.
+- **Layout de aplicativo** (`AppLayout` + `Sidebar`), usado sempre no app
+  desktop e em telas largas (≥ 1024px) na web: barra lateral fixa com
+  "Novo lançamento", as telas, tema, Ajustes e perfil; só o painel de
+  conteúdo rola. Em janelas estreitas a barra fica só com ícones (rótulo na
+  dica do mouse). Toasts no canto inferior direito.
+- **Atalhos** (`useAppShortcuts`): `Ctrl+N` novo lançamento, `Ctrl+1…6`
+  Início, Lançamentos, Cartões, Orçamentos, Fixos e Categorias, `Ctrl+,`
+  Ajustes.
+- **Celular** (web < 1024px): barra superior (`TopBar`) e barra inferior
+  flutuante (`BottomNav`): Início · Lançamentos · **+** · Cartões · Orçamentos.
+- O botão "+" / "Novo lançamento" abre o formulário de lançamento global
   (`TransactionSheetProvider`), disponível em qualquer tela.
+- No app desktop, `html[data-app]` (definido em `main.tsx`) dá comportamento de
+  aplicativo nativo: interface não selecionável (exceto campos), cursor padrão,
+  sem menu de contexto do navegador e sem "elástico" de rolagem.
 - O **mês de referência** é compartilhado: trocar o mês no dashboard mantém o
   mesmo mês em lançamentos e orçamentos.
 
@@ -120,7 +134,7 @@ Acessibilidade e robustez:
 - **Gastos por mês** (`MonthlyTrendCard` + `TrendChart`): filtros acima do
   gráfico — período (calendário `PeriodPicker`), tipo (despesas, receitas ou
   comparar) e categoria. No modo **mês específico** o gráfico passa a mostrar
-  os dias daquele mês (`/dashboard/daily-totals`), já que um gráfico de uma
+  os dias daquele mês (`dailyTotals`), já que um gráfico de uma
   barra só não comunicaria nada. Com uma métrica, é série única com o **mês
   selecionado em destaque** e os demais esmaecidos; em "Comparar", duas séries
   (azul = receitas, laranja = despesas — par validado para daltonismo, em vez
@@ -138,7 +152,7 @@ Acessibilidade e robustez:
 
 | Comando | O que faz |
 |---|---|
-| `npm run dev` | Servidor de desenvolvimento (porta 5173, proxy de `/api`) |
+| `npm run dev` | Servidor de desenvolvimento (porta 5173) |
 | `npm run build` | Checagem de tipos + build de produção em `dist/` |
 | `npm run lint` | Oxlint |
 | `npm test` | Vitest |

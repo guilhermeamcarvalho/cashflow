@@ -1,25 +1,23 @@
 # 0001 — Pacote por funcionalidade com camadas internas
 
-**Status:** aceita
+**Status:** aceita (escrita para o antigo back-end; segue valendo no front-end)
 
 ## Contexto
 
-O back-end segue Controller → Service → Repository. Organizar o código só por
-camada (`controllers/`, `services/`, `repositories/`) espalha cada
-funcionalidade por vários diretórios e cresce mal: uma mudança em orçamentos
-toca três pastas que também contêm todo o resto.
+Organizar o código só por camada (`pages/`, `hooks/`, `services/`) espalha
+cada funcionalidade por vários diretórios e cresce mal: uma mudança em
+orçamentos toca várias pastas que também contêm todo o resto.
 
 ## Decisão
 
-Organizar por funcionalidade (`auth`, `user`, `category`, `transaction`,
-`budget`, `dashboard`), mantendo as camadas como classes dentro de cada pacote.
-Código transversal fica em `common` e `config`. O mesmo princípio vale no
-front-end (`src/features/*`).
+Organizar por funcionalidade: telas e hooks em `src/features/*` e as regras de
+negócio em `src/data/<funcionalidade>.ts`. Código transversal fica em
+`components/`, `lib/` e `app/`.
 
 ## Consequências
 
-- Funcionalidades novas entram como pacotes novos, sem editar os existentes.
-- Dependências entre funcionalidades ficam visíveis nos imports; a regra é
-  depender do **serviço** da outra funcionalidade, nunca do controller.
-- `TransactionType` foi movido para `common.domain` para evitar ciclo entre
-  `category` e `transaction`.
+- Funcionalidades novas entram como pastas/arquivos novos, sem editar os
+  existentes.
+- Dependências entre funcionalidades ficam visíveis nos imports; uma regra de
+  `data/` pode usar a de outra funcionalidade (ex.: lançamentos usam
+  `resolvePayment` dos cartões), nunca uma tela.

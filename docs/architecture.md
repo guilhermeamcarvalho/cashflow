@@ -2,149 +2,120 @@
 
 ## Visão geral
 
-O Cashflow é uma aplicação **cliente-servidor** com **API REST**:
-
-- **Front-end** — SPA em React + TypeScript, servida estaticamente (Vercel em
-  produção, Nginx no Docker). Não contém regra de negócio além de validações de
-  conveniência; toda regra vive na API.
-- **Back-end** — API stateless em Spring Boot. Autentica via JWT, valida,
-  aplica regras de negócio e persiste no PostgreSQL via JPA/Hibernate.
-- **Banco** — PostgreSQL. O schema é versionado com **Flyway**; o Hibernate
-  apenas **valida** o mapeamento (`ddl-auto: validate`).
+O Cashflow é uma **SPA sem servidor**: React + TypeScript servido como site
+estático (Vercel). Os dados ficam no navegador do usuário, em **IndexedDB**.
+Não há conta, login nem API — cada navegador tem seus próprios dados (ver
+[ADR 0005](adr/0005-dados-locais.md)).
 
 ```
- Navegador ──HTTPS──▶ Vercel (SPA estática)
-     │
-     └──HTTPS / JSON + Authorization: Bearer <JWT>──▶ Render (Spring Boot)
-                                                         │ JDBC (SSL)
-                                                         ▼
-                                                   Supabase (PostgreSQL)
+ Navegador
+ ├── telas (features/*)  ── hooks TanStack Query ──┐
+ │                                                 ▼
+ ├── camada de dados (src/data) ── regras de negócio, validação
+ │        │
+ │        ▼
+ └── IndexedDB  (um documento com todo o estado)  ⇄  backup .json
 ```
 
-## Back-end
+## Camada de dados (`src/data`)
 
-### Organização: pacote por funcionalidade + camadas
+Faz o papel que a API fazia: as telas chamam funções assíncronas
+(`listTransactions`, `createCreditCard`, `monthlySummary`…) que devolvem
+exatamente os tipos de `src/types/api.ts`. Por isso as telas e os hooks
+continuaram iguais quando o back-end foi removido.
 
-Cada funcionalidade é um pacote autocontido; dentro dele, a separação clássica
-em camadas:
+| Arquivo | Responsabilidade |
+|---|---|
+| `store.ts` | Estado em memória + gravação no IndexedDB; fila que serializa leituras e escritas; sincronização entre abas |
+| `schema.ts` | Formato dos registros guardados (e do backup); versão e migração |
+| `categories.ts`, `transactions.ts`, `creditCards.ts`, `recurring.ts`, `budgets.ts`, `dashboard.ts`, `profile.ts` | Regras de negócio de cada funcionalidade |
+| `backup.ts` | Exportar, importar e apagar tudo |
+| `mappers.ts` | Registro interno → tipo das telas (centavos → reais, ids → objetos) |
+| `validation.ts`, `errors.ts` | Validação por campo e `AppError` (com `status` e `fieldErrors`) |
+| `clock.ts`, `money.ts` | "Hoje" (substituível nos testes) e conversão de dinheiro |
 
-```
-com.cashflow.api
-├── auth/          AuthController → AuthService → UserRepository
-├── user/          UserController → UserService → UserRepository
-├── category/      CategoryController → CategoryService → CategoryRepository
-├── transaction/   TransactionController → TransactionService → TransactionRepository
-├── budget/        BudgetController → BudgetService → BudgetRepository (+ TransactionRepository)
-├── dashboard/     DashboardController → DashboardService → TransactionRepository, BudgetRepository
-├── common/
-│   ├── domain/        TransactionType (enum compartilhado)
-│   ├── exception/     exceções de negócio + GlobalExceptionHandler (RFC 9457)
-│   ├── persistence/   AuditableEntity (UUID + created_at/updated_at)
-│   ├── security/      TokenService, @CurrentUserId
-│   └── web/           PageResponse, MonthRange
-└── config/        SecurityConfig, WebConfig, OpenApiConfig, *Properties
-```
+### Armazenamento
 
-**Por que pacote por funcionalidade?** Uma mudança em "orçamentos" fica
-concentrada num só pacote; novas funcionalidades (ex.: metas, contas recorrentes)
-entram como pacotes novos sem tocar nos existentes. As camadas continuam
-explícitas dentro de cada pacote.
-
-### Responsabilidade de cada camada
-
-| Camada | Responsabilidade | Não faz |
-|---|---|---|
-| **Controller** | Mapear HTTP ↔ DTO, validar entrada (`@Valid`), resolver o usuário (`@CurrentUserId`), documentar (OpenAPI) | Regra de negócio, acesso a banco |
-| **Service** | Regras de negócio, transações (`@Transactional`), checagem de propriedade dos dados, conversão entidade → DTO | Conhecer HTTP |
-| **Repository** | Acesso a dados com Spring Data JPA: consultas derivadas, JPQL agregada, `Specification` para filtros dinâmicos | Regra de negócio |
-
-- **DTOs são `record`s** imutáveis; entidades nunca saem da camada de serviço.
-- Serviços de uma funcionalidade podem usar o **serviço** de outra (ex.:
-  `TransactionService` usa `CategoryService.getOwned`) — nunca o controller.
+- Todo o estado é **um único documento** (`Database`) carregado na memória na
+  primeira consulta e regravado inteiro no IndexedDB a cada alteração. Para o
+  volume de um controle financeiro pessoal (milhares de lançamentos) isso é
+  rápido e mantém as consultas como simples filtros em arrays.
+- **Escritas são atômicas:** `write(fn)` trabalha numa cópia (`structuredClone`);
+  se `fn` lançar um erro de regra, nada é gravado.
+- **Fila única:** leituras e escritas passam por uma fila, então nenhuma leitura
+  vê uma escrita pela metade.
+- **Várias abas:** depois de gravar, a aba avisa as outras por
+  `BroadcastChannel`; elas descartam o estado em memória e o TanStack Query
+  recarrega as telas.
+- Na primeira gravação o app pede `navigator.storage.persist()`, para o
+  navegador não apagar os dados quando faltar espaço.
 
 ### Modelo de dados
 
-```
-users 1───* categories 1───* transactions
-  │             │
-  │             └──────* budgets
-  └────────────────────* transactions / budgets
-```
-
-| Tabela | Campos principais | Regras |
+| Coleção | Campos principais | Regras |
 |---|---|---|
-| `users` | `id`, `name`, `email` (único, minúsculo), `password_hash` (BCrypt) | |
-| `categories` | `user_id`, `name`, `type` (`INCOME`/`EXPENSE`), `color`, `icon` | Nome único por usuário e tipo; tipo imutável |
-| `transactions` | `user_id`, `category_id`, `type`, `description`, `amount` `NUMERIC(14,2)`, `occurred_on` | `amount > 0`; `type` copiado da categoria; FK `RESTRICT` na categoria |
-| `budgets` | `user_id`, `category_id`, `reference_month` (dia 1), `amount` | Único por (usuário, categoria, mês); só categorias de despesa |
+| `profile` | `name` | `null` até o primeiro acesso (tela de boas-vindas) |
+| `categories` | `name`, `type` (`INCOME`/`EXPENSE`), `color`, `icon` | Nome único por tipo; tipo imutável; exclusão bloqueada com lançamentos/fixos (orçamentos da categoria são removidos) |
+| `transactions` | `categoryId`, `type`, `description`, `amount`, `date`, `paymentMethod`, `creditCardId`, `invoiceMonth`, parcelas, `recurringId` | `type` copiado da categoria; receitas não têm forma de pagamento |
+| `budgets` | `categoryId`, `month`, `amount` | Um por categoria e mês; só categorias de despesa |
+| `creditCards` | `name`, `color`, `closingDay`, `dueDay`, `creditLimit` | Nome único; exclusão bloqueada com lançamentos |
+| `invoicePayments` | `cardId`, `month`, `paidOn` | Só faturas já fechadas podem ser pagas |
+| `recurring` | `categoryId`, `amount`, `dayOfMonth`, `startMonth`, `generatedThrough`, forma de pagamento | Mês inicial imutável depois do 1º lançamento gerado |
 
-Decisões relevantes:
+- **Dinheiro em centavos inteiros** (nunca ponto flutuante nas somas); a
+  conversão para reais acontece só na saída.
+- **UUIDs** (`crypto.randomUUID`) como ids.
 
-- **UUID** como chave: ids não sequenciais não revelam volume nem permitem
-  enumeração.
-- **`NUMERIC(14,2)` + `BigDecimal`** para dinheiro (nunca ponto flutuante).
-- **`type` desnormalizado** em `transactions`: as agregações mensais filtram por
-  tipo sem `JOIN`. Como o tipo da categoria é imutável, não há risco de
-  divergência.
-- Índice `(user_id, occurred_on)` atende a consulta dominante: "lançamentos do
-  usuário no mês".
+### Regras de negócio
 
-### Isolamento entre usuários (multi-tenant por linha)
+- **Faturas** são identificadas pelo mês de **vencimento**. Compras antes do
+  dia de fechamento entram na fatura que fecha no mês; a partir dele, na
+  seguinte. Se o vencimento cai depois do fechamento, vence no mesmo mês; senão,
+  no seguinte. Dias inexistentes (31 em abril) viram o último dia do mês. A
+  regra fica em `lib/creditCard.ts`, compartilhada com o formulário.
+- **Parcelas:** o total é dividido em partes iguais (centavos que sobram na
+  1ª); a parcela *k* é datada *k* meses depois da compra e entra na fatura *k*
+  meses depois da primeira.
+- **Lançamentos fixos** são gerados de forma preguiçosa: antes de cada leitura
+  de dados financeiros, `generateDue()` lança tudo o que venceu até o mês
+  corrente (e só grava se houver algo a gerar). Editar um fixo vale para os
+  próximos meses; excluir mantém o histórico, desvinculado.
+- **Status da fatura:** paga → `PAID`; antes do fechamento → `OPEN`; fechada sem
+  compras → `PAID`; depois do vencimento → `OVERDUE`; senão `CLOSED`.
 
-Toda consulta de serviço filtra pelo `userId` extraído do JWT
-(`findByIdAndUserId`, `Specification` com `user.id = :userId` etc.). Acessar um
-recurso de outro usuário resulta em **404** — a API não confirma que o recurso
-existe. Há teste de integração cobrindo esse cenário.
+### Erros
 
-### Segurança
+As funções lançam `AppError` com a semântica de status que a API usava, para as
+telas tratarem cada caso igual:
 
-- **Spring Security** stateless, CSRF desabilitado (não há cookies de sessão).
-- A API **emite** o JWT (`JwtEncoder`, HS256) e o **valida** como OAuth2
-  Resource Server (`JwtDecoder` + validação de `iss` e expiração).
-- Claims: `sub` = id do usuário, `name`, `email`, `iat`, `exp`, `iss`.
-- Senhas com **BCrypt**. Login responde a mesma mensagem para e-mail inexistente
-  e senha errada.
-- CORS restrito às origens configuradas em `CORS_ALLOWED_ORIGINS`.
-- Rotas públicas: `POST /api/v1/auth/**`, `/actuator/health`, documentação.
-
-### Tratamento de erros
-
-`GlobalExceptionHandler` converte exceções em **Problem Details (RFC 9457)**:
-
-| Exceção | Status |
+| Situação | `status` |
 |---|---|
-| `MethodArgumentNotValidException` | 400 (+ `errors` por campo) |
-| `InvalidCredentialsException` | 401 |
-| `ResourceNotFoundException` | 404 |
-| `ConflictException`, `DataIntegrityViolationException` | 409 |
-| `BusinessRuleException` | 422 |
-| Qualquer outra | 500 (logada, sem detalhes ao cliente) |
+| Validação de campos (`fieldErrors` por campo) | 400 |
+| Registro não encontrado | 404 |
+| Conflito (nome repetido, exclusão bloqueada) | 409 |
+| Regra de negócio | 422 |
+
+### Backup
+
+`Ajustes → Exportar backup` baixa um `.json` com `{ format, version,
+exportedAt, data }`, em que `data` é o documento `Database` inteiro. Restaurar
+valida o formato e **substitui** todos os dados. Backups de versões futuras do
+schema são recusados; de versões anteriores passam por `migrate()`.
 
 ### Testes
 
-- **Integração** (`CashflowApiIntegrationTest`): sobe o contexto completo com
-  MockMvc + H2 em modo PostgreSQL, aplicando as **mesmas migrações Flyway**.
-  Cobre cadastro/login, autorização, fluxo mensal completo (lançamentos →
-  orçamento → dashboard → cópia de orçamentos), isolamento entre usuários,
-  validação e regras de negócio.
-- **Unitários**: lógica pura (ex.: `MonthRangeTest`).
+`src/data/data.test.ts` porta os cenários dos antigos testes de integração da
+API (fluxo do mês, filtros e paginação, cartões e parcelas, lançamentos fixos,
+validação, backup) usando armazenamento em memória e um relógio fixo.
 
 ## Front-end
 
-Detalhado em [frontend.md](frontend.md). Em resumo: organização por
-funcionalidade, TanStack Query como cache de dados do servidor, Context API para
-estado de UI global (sessão, tema, mês de referência) e um design system próprio
-em CSS + Tailwind.
+Detalhado em [frontend.md](frontend.md).
 
-## Escalabilidade — próximos passos naturais
+## Limitações conhecidas
 
-A estrutura atual comporta evolução sem reescrita:
-
-| Necessidade | Caminho |
+| Limitação | Contorno |
 |---|---|
-| Mais usuários | API é stateless → escalar horizontalmente; ajustar `DATABASE_POOL_SIZE` e usar o pooler do Supabase |
-| Lançamentos recorrentes / metas | Novo pacote `recurring/` ou `goal/` + nova migração `V2__...sql` |
-| Refresh token / logout global | Tabela de refresh tokens + endpoint `/auth/refresh` |
-| Relatórios pesados | Consultas agregadas já isoladas em `TransactionRepository`; podem migrar para views materializadas |
-| Testes contra PostgreSQL real | Trocar H2 por Testcontainers nos testes de integração |
-| Observabilidade | Actuator já incluso; adicionar Micrometer + Prometheus/OTel |
+| Dados presos a um navegador/aparelho | Exportar backup e restaurar no outro aparelho |
+| Limpar os dados do site apaga tudo | Backup periódico; `storage.persist()` reduz o risco de remoção automática |
+| Sem sincronização automática entre aparelhos | Exigiria voltar a ter um servidor (ou um serviço de sync) |
