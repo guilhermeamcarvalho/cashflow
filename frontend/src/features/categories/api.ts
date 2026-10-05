@@ -1,21 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { http } from '@/lib/http'
+import { createCategory, deleteCategory, listCategories, updateCategory } from '@/data/categories'
 import { queryKeys } from '@/lib/queryKeys'
-import type { Category, CategoryInput, TransactionType } from '@/types/api'
-
-const BASE = '/api/v1/categories'
-
-export const categoriesApi = {
-  list: (type?: TransactionType) => http.get<Category[]>(BASE, { type }),
-  create: (input: CategoryInput) => http.post<Category>(BASE, input),
-  update: (id: string, input: Omit<CategoryInput, 'type'>) => http.put<Category>(`${BASE}/${id}`, input),
-  remove: (id: string) => http.delete(`${BASE}/${id}`),
-}
+import type { CategoryInput, TransactionType } from '@/types/api'
 
 export function useCategories(type?: TransactionType) {
   return useQuery({
     queryKey: queryKeys.categories.byType(type),
-    queryFn: () => categoriesApi.list(type),
+    queryFn: () => listCategories(type),
     staleTime: 5 * 60_000,
   })
 }
@@ -36,12 +27,12 @@ export function useSaveCategory() {
   const invalidate = useInvalidateCategoryViews()
   return useMutation({
     mutationFn: ({ id, input }: { id?: string; input: CategoryInput }) =>
-      id ? categoriesApi.update(id, input) : categoriesApi.create(input),
+      id ? updateCategory(id, input) : createCategory(input),
     onSuccess: invalidate,
   })
 }
 
 export function useDeleteCategory() {
   const invalidate = useInvalidateCategoryViews()
-  return useMutation({ mutationFn: categoriesApi.remove, onSuccess: invalidate })
+  return useMutation({ mutationFn: deleteCategory, onSuccess: invalidate })
 }

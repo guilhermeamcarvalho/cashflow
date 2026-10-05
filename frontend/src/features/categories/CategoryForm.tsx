@@ -6,7 +6,7 @@ import { CATEGORY_ICON_NAMES, CategoryIcon } from '@/components/ui/CategoryIcon'
 import { TextField } from '@/components/ui/Field'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { useToast } from '@/components/ui/Toast'
-import { ApiError } from '@/lib/http'
+import { AppError } from '@/data/errors'
 import type { Category, TransactionType } from '@/types/api'
 import { useDeleteCategory, useSaveCategory } from './api'
 
@@ -48,7 +48,7 @@ export function CategoryForm({ category, defaultType, onDone }: CategoryFormProp
       toast.success(category ? 'Categoria atualizada' : 'Categoria criada')
       onDone()
     } catch (err) {
-      if (err instanceof ApiError && err.fieldErrors.name) setError(err.fieldErrors.name)
+      if (err instanceof AppError && err.fieldErrors.name) setError(err.fieldErrors.name)
       else toast.error(err instanceof Error ? err.message : 'Erro ao salvar')
     }
   }

@@ -1,4 +1,13 @@
-import { ArrowLeftRight, CreditCard, LayoutDashboard, PiggyBank, type LucideIcon } from 'lucide-react'
+import {
+  ArrowLeftRight,
+  CreditCard,
+  LayoutDashboard,
+  PiggyBank,
+  Repeat,
+  Settings,
+  Tags,
+  type LucideIcon,
+} from 'lucide-react'
 
 export interface NavItem {
   to: string
@@ -31,3 +40,24 @@ export const BUDGETS: NavItem = {
   icon: PiggyBank,
   match: (p) => p.startsWith('/budgets'),
 }
+export const RECURRING: NavItem = {
+  to: '/recurring',
+  label: 'Lançamentos fixos',
+  icon: Repeat,
+  match: (p) => p.startsWith('/recurring'),
+}
+export const CATEGORIES: NavItem = {
+  to: '/settings/categories',
+  label: 'Categorias',
+  icon: Tags,
+  match: (p) => p.startsWith('/settings/categories'),
+}
+export const SETTINGS: NavItem = {
+  to: '/settings',
+  label: 'Ajustes',
+  icon: Settings,
+  match: (p) => p === '/settings',
+}
+
+/** Navegação da barra lateral, na ordem dos atalhos Ctrl+1…Ctrl+6. */
+export const SIDEBAR_MAIN: NavItem[] = [DASHBOARD, TRANSACTIONS, CARDS, BUDGETS, RECURRING, CATEGORIES]

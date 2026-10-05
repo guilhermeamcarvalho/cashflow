@@ -54,3 +54,13 @@ export function minMonth(a: YearMonth, b: YearMonth): YearMonth {
 export function maxMonth(a: YearMonth, b: YearMonth): YearMonth {
   return compareMonths(a, b) >= 0 ? a : b
 }
+
+/** Data do dia `day` no mês; dias inexistentes (31 em abril) viram o último dia. */
+export function dayIn(month: YearMonth, day: number): string {
+  return `${month}-${String(Math.min(day, daysInMonth(month))).padStart(2, '0')}`
+}
+
+/** Soma meses a uma data `YYYY-MM-DD`, ajustando ao último dia em meses curtos. */
+export function addMonthsToDate(isoDate: string, amount: number): string {
+  return dayIn(addMonths(isoDate.slice(0, 7), amount), Number(isoDate.slice(8, 10)))
+}

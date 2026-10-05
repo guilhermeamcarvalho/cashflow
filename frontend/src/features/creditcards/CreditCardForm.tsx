@@ -4,7 +4,7 @@ import { useState, type FormEvent } from 'react'
 import { Button } from '@/components/ui/Button'
 import { MoneyInput, parseMoney, TextField, toMoneyInput } from '@/components/ui/Field'
 import { useToast } from '@/components/ui/Toast'
-import { ApiError } from '@/lib/http'
+import { AppError } from '@/data/errors'
 import type { CreditCard } from '@/types/api'
 import { useDeleteCreditCard, useSaveCreditCard } from './api'
 
@@ -49,8 +49,8 @@ export function CreditCardForm({ card, onDone }: CreditCardFormProps) {
       toast.success(card ? 'Cartão atualizado' : 'Cartão cadastrado')
       onDone()
     } catch (error) {
-      if (error instanceof ApiError && Object.keys(error.fieldErrors).length > 0) setErrors(error.fieldErrors)
-      else if (error instanceof ApiError && error.status === 409) setErrors({ name: error.message })
+      if (error instanceof AppError && Object.keys(error.fieldErrors).length > 0) setErrors(error.fieldErrors)
+      else if (error instanceof AppError && error.status === 409) setErrors({ name: error.message })
       else toast.error(error instanceof Error ? error.message : 'Erro ao salvar')
     }
   }

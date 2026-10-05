@@ -17,7 +17,7 @@ interface PeriodPickerProps {
   onChange: (value: PeriodValue) => void
   /** Mês usado como base dos atalhos ("últimos 6 meses" etc.). */
   reference: YearMonth
-  /** Tamanho máximo do intervalo (o back-end aceita até 24 meses). */
+  /** Tamanho máximo do intervalo (a série mensal aceita até 24 meses). */
   maxMonths?: number
   className?: string
 }

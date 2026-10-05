@@ -12,7 +12,7 @@ import { useToast } from '@/components/ui/Toast'
 import { CategoryPicker } from '@/features/categories/CategoryPicker'
 import { PaymentPicker, type PaymentValue } from '@/features/creditcards/PaymentPicker'
 import { useSaveRecurring } from '@/features/recurring/api'
-import { ApiError } from '@/lib/http'
+import { AppError } from '@/data/errors'
 import { formatCurrency, formatMonth } from '@/lib/format'
 import { defaultDateFor } from '@/lib/month'
 import type { Transaction, TransactionType } from '@/types/api'
@@ -98,7 +98,7 @@ export function TransactionForm({ transaction, onDone }: TransactionFormProps) {
       }
       onDone()
     } catch (error) {
-      if (error instanceof ApiError && Object.keys(error.fieldErrors).length > 0) setErrors(error.fieldErrors)
+      if (error instanceof AppError && Object.keys(error.fieldErrors).length > 0) setErrors(error.fieldErrors)
       else toast.error(error instanceof Error ? error.message : 'Erro ao salvar')
     }
   }

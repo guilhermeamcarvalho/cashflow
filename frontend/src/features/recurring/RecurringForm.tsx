@@ -8,7 +8,7 @@ import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { useToast } from '@/components/ui/Toast'
 import { CategoryPicker } from '@/features/categories/CategoryPicker'
 import { PaymentPicker, type PaymentValue } from '@/features/creditcards/PaymentPicker'
-import { ApiError } from '@/lib/http'
+import { AppError } from '@/data/errors'
 import { formatMonth } from '@/lib/format'
 import { defaultDateFor } from '@/lib/month'
 import type { RecurringTransaction, TransactionType } from '@/types/api'
@@ -87,7 +87,7 @@ export function RecurringForm({ recurring, onDone }: RecurringFormProps) {
       toast.success(recurring ? 'Lançamento fixo atualizado' : 'Lançamento fixo criado')
       onDone()
     } catch (error) {
-      if (error instanceof ApiError && Object.keys(error.fieldErrors).length > 0) setErrors(error.fieldErrors)
+      if (error instanceof AppError && Object.keys(error.fieldErrors).length > 0) setErrors(error.fieldErrors)
       else toast.error(error instanceof Error ? error.message : 'Erro ao salvar')
     }
   }

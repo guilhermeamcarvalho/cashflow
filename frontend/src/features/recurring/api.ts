@@ -1,21 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { http } from '@/lib/http'
+import { createRecurring, deleteRecurring, listRecurring, updateRecurring } from '@/data/recurring'
 import { queryKeys } from '@/lib/queryKeys'
-import type { RecurringTransaction, RecurringTransactionInput } from '@/types/api'
-
-const BASE = '/api/v1/recurring-transactions'
-
-export const recurringApi = {
-  list: (signal?: AbortSignal) => http.get<RecurringTransaction[]>(BASE, undefined, signal),
-  create: (input: RecurringTransactionInput) => http.post<RecurringTransaction>(BASE, input),
-  update: (id: string, input: RecurringTransactionInput) => http.put<RecurringTransaction>(`${BASE}/${id}`, input),
-  remove: (id: string) => http.delete(`${BASE}/${id}`),
-}
+import type { RecurringTransactionInput } from '@/types/api'
 
 export function useRecurringTransactions() {
   return useQuery({
     queryKey: queryKeys.recurring.all,
-    queryFn: ({ signal }) => recurringApi.list(signal),
+    queryFn: listRecurring,
   })
 }
 
@@ -36,12 +27,12 @@ export function useSaveRecurring() {
   const invalidate = useInvalidateRecurringViews()
   return useMutation({
     mutationFn: ({ id, input }: { id?: string; input: RecurringTransactionInput }) =>
-      id ? recurringApi.update(id, input) : recurringApi.create(input),
+      id ? updateRecurring(id, input) : createRecurring(input),
     onSuccess: invalidate,
   })
 }
 
 export function useDeleteRecurring() {
   const invalidate = useInvalidateRecurringViews()
-  return useMutation({ mutationFn: recurringApi.remove, onSuccess: invalidate })
+  return useMutation({ mutationFn: deleteRecurring, onSuccess: invalidate })
 }

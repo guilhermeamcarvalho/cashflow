@@ -1,11 +1,10 @@
 import { lazy } from 'react'
 import { createBrowserRouter, Navigate } from 'react-router'
 import { AppLayout } from '@/components/layout/AppLayout'
-import { GuestOnly, RequireAuth } from '@/features/auth/RequireAuth'
+import { FirstAccessOnly, RequireProfile } from '@/features/profile/RequireProfile'
 
 // Cada tela vira um chunk separado (carregado sob demanda).
-const LoginPage = lazy(() => import('@/features/auth/LoginPage'))
-const RegisterPage = lazy(() => import('@/features/auth/RegisterPage'))
+const WelcomePage = lazy(() => import('@/features/profile/WelcomePage'))
 const DashboardPage = lazy(() => import('@/features/dashboard/DashboardPage'))
 const TransactionsPage = lazy(() => import('@/features/transactions/TransactionsPage'))
 const BudgetsPage = lazy(() => import('@/features/budgets/BudgetsPage'))
@@ -16,14 +15,11 @@ const CreditCardsPage = lazy(() => import('@/features/creditcards/CreditCardsPag
 
 export const router = createBrowserRouter([
   {
-    element: <GuestOnly />,
-    children: [
-      { path: '/login', element: <LoginPage /> },
-      { path: '/register', element: <RegisterPage /> },
-    ],
+    element: <FirstAccessOnly />,
+    children: [{ path: '/welcome', element: <WelcomePage /> }],
   },
   {
-    element: <RequireAuth />,
+    element: <RequireProfile />,
     children: [
       {
         element: <AppLayout />,

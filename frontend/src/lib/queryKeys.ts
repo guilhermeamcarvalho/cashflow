@@ -6,7 +6,7 @@ import type { DailyTotalsQuery, MonthlyTotalsQuery, TransactionQuery, Transactio
  * após criar um lançamento atualiza todas as listas).
  */
 export const queryKeys = {
-  me: ['me'] as const,
+  profile: ['profile'] as const,
   categories: {
     all: ['categories'] as const,
     byType: (type?: TransactionType) => ['categories', type ?? 'ALL'] as const,

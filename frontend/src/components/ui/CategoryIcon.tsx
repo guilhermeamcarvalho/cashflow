@@ -39,7 +39,7 @@ import {
 } from 'lucide-react'
 
 /**
- * Registro de ícones disponíveis para categorias. A API guarda apenas o nome
+ * Registro de ícones disponíveis para categorias. O banco local guarda apenas o nome
  * (ex.: "utensils"); aqui o nome é traduzido para o componente do Lucide.
  */
 export const CATEGORY_ICONS: Record<string, LucideIcon> = {

@@ -5,7 +5,7 @@ import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/Button'
 import { Card, CardHeader } from '@/components/ui/Card'
 import { EmptyState, ErrorState, Skeleton } from '@/components/ui/Feedback'
-import { useAuth } from '@/features/auth/AuthContext'
+import { useProfile } from '@/features/profile/ProfileContext'
 import { useCreditCards } from '@/features/creditcards/api'
 import { TransactionRow } from '@/features/transactions/TransactionRow'
 import { useTransactionSheet } from '@/features/transactions/TransactionSheetContext'
@@ -18,19 +18,19 @@ import { MonthlyTrendCard } from './MonthlyTrendCard'
 import { SummaryCards } from './SummaryCards'
 
 export default function DashboardPage() {
-  const { user } = useAuth()
+  const { profile } = useProfile()
   const { month } = useMonth()
   const { openCreate, openEdit } = useTransactionSheet()
   const query = useMonthlySummary(month)
   const cards = useCreditCards()
   const hasCards = (cards.data?.length ?? 0) > 0
-  const firstName = user?.name.split(' ')[0] ?? ''
+  const firstName = profile?.name.split(' ')[0] ?? ''
 
   return (
     <>
       <PageHeader
         title="Visão geral"
-        description={`Olá, ${firstName}. Este é o resumo de ${formatMonth(month).toLowerCase()}.`}
+        description={`${firstName ? `Olá, ${firstName}. ` : ''}Este é o resumo de ${formatMonth(month).toLowerCase()}.`}
         withMonth
       />
 

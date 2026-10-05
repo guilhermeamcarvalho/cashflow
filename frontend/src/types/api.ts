@@ -1,7 +1,7 @@
 /**
- * Contrato da API REST (espelha os DTOs do back-end).
- * Valores monetários chegam como `number` (BigDecimal serializado) e datas
- * como strings ISO: `YYYY-MM-DD` (LocalDate) e `YYYY-MM` (mês de referência).
+ * Tipos que as telas consomem, devolvidos pela camada de dados local
+ * (`src/data`). Valores monetários em reais (`number`) e datas como strings
+ * ISO: `YYYY-MM-DD` (dia) e `YYYY-MM` (mês de referência).
  */
 
 export type TransactionType = 'INCOME' | 'EXPENSE'

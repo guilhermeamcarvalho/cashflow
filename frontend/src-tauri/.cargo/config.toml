@@ -1,0 +1,5 @@
+# O projeto fica no OneDrive: compilar dentro dele é bloqueado (acesso negado)
+# e o OneDrive tentaria sincronizar a pasta de build (vários GB). Por isso o
+# build vai para fora. A variável CARGO_TARGET_DIR, se definida, tem prioridade.
+[build]
+target-dir = "C:/dev/cargo-target"

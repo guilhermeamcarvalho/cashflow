@@ -1,4 +1,4 @@
-import { ChevronRight, KeyRound, LogOut, Repeat, Tags, UserRound } from 'lucide-react'
+import { ChevronRight, Download, Repeat, Tags, Trash2, Upload, UserRound } from 'lucide-react'
 import { useState, type FormEvent, type ReactNode } from 'react'
 import { Link } from 'react-router'
 import { useTheme, type ThemePreference } from '@/app/theme'
@@ -10,9 +10,11 @@ import { TextField } from '@/components/ui/Field'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { Sheet } from '@/components/ui/Sheet'
 import { useToast } from '@/components/ui/Toast'
-import { useAuth } from '@/features/auth/AuthContext'
-import { userApi } from '@/features/auth/api'
-import { ApiError } from '@/lib/http'
+import { isDesktop, STORAGE_PLACE } from '@/data/desktop'
+import { AppError } from '@/data/errors'
+import { downloadBackup } from '@/features/profile/backupFile'
+import { useProfile } from '@/features/profile/ProfileContext'
+import { DataFileCard } from './DataFileCard'
 
 const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
   { value: 'system', label: 'Sistema' },
@@ -20,23 +22,33 @@ const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
   { value: 'dark', label: 'Escuro' },
 ]
 
-type Panel = 'profile' | 'password' | null
+type Panel = 'profile' | 'restore' | 'reset' | null
 
 export default function SettingsPage() {
-  const { user, logout } = useAuth()
+  const { profile } = useProfile()
   const { preference, setPreference } = useTheme()
+  const toast = useToast()
   const [panel, setPanel] = useState<Panel>(null)
+
+  async function handleExport() {
+    try {
+      await downloadBackup()
+      toast.success('Backup exportado')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Erro ao exportar')
+    }
+  }
 
   return (
     <>
-      <PageHeader title="Ajustes" description="Conta, segurança e preferências do aplicativo." />
+      <PageHeader title="Ajustes" description="Perfil, dados e preferências do aplicativo." />
 
       <div className="flex max-w-3xl flex-col gap-4">
         <Card className="animate-rise flex flex-col gap-4 p-5 sm:flex-row sm:items-center">
-          <Avatar name={user?.name ?? ''} size="lg" />
+          <Avatar name={profile?.name ?? ''} size="lg" />
           <div className="min-w-0 flex-1">
-            <p className="truncate font-semibold">{user?.name}</p>
-            <p className="truncate text-sm text-ink-3">{user?.email}</p>
+            <p className="truncate font-semibold">{profile?.name || 'Sem nome'}</p>
+            <p className="truncate text-sm text-ink-3">Dados salvos {STORAGE_PLACE}</p>
           </div>
           <Button variant="secondary" onClick={() => setPanel('profile')}>
             Editar perfil
@@ -44,19 +56,13 @@ export default function SettingsPage() {
         </Card>
 
         <Card className="animate-rise overflow-hidden">
-          <CardHeader title="Conta" className="border-b border-line px-5 py-4" />
+          <CardHeader title="Geral" className="border-b border-line px-5 py-4" />
           <ul className="divide-y divide-line">
             <MenuItem
               icon={<UserRound className="size-4" />}
               label="Perfil"
               description="Nome exibido no aplicativo"
               onClick={() => setPanel('profile')}
-            />
-            <MenuItem
-              icon={<KeyRound className="size-4" />}
-              label="Senha"
-              description="Altere a senha de acesso"
-              onClick={() => setPanel('password')}
             />
             <MenuItem
               icon={<Repeat className="size-4" />}
@@ -93,11 +99,38 @@ export default function SettingsPage() {
           </div>
         </Card>
 
-        <Card className="animate-rise flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
-          <CardHeader title="Sessão" description="Encerre o acesso neste dispositivo." />
-          <Button variant="danger" onClick={logout}>
-            <LogOut className="size-4" aria-hidden /> Sair da conta
-          </Button>
+        {isDesktop && <DataFileCard />}
+
+        <Card className="animate-rise overflow-hidden">
+          <CardHeader
+            title="Dados"
+            description={
+              isDesktop
+                ? 'Exporte um backup para guardar uma cópia ou abrir os dados no navegador.'
+                : 'Tudo fica salvo só neste navegador. Exporte um backup de vez em quando para não perder nada e para levar os dados a outro aparelho.'
+            }
+            className="border-b border-line px-5 py-4"
+          />
+          <ul className="divide-y divide-line">
+            <MenuItem
+              icon={<Download className="size-4" />}
+              label="Exportar backup"
+              description="Baixa um arquivo .json com todos os dados"
+              onClick={handleExport}
+            />
+            <MenuItem
+              icon={<Upload className="size-4" />}
+              label="Restaurar backup"
+              description="Substitui os dados deste navegador pelos do arquivo"
+              onClick={() => setPanel('restore')}
+            />
+            <MenuItem
+              icon={<Trash2 className="size-4" />}
+              label="Apagar todos os dados"
+              description="Remove lançamentos, cartões, orçamentos e categorias"
+              onClick={() => setPanel('reset')}
+            />
+          </ul>
         </Card>
 
         <p className="text-xs text-ink-3">Cashflow v1.0.0</p>
@@ -106,8 +139,11 @@ export default function SettingsPage() {
       <Sheet open={panel === 'profile'} onClose={() => setPanel(null)} title="Editar perfil">
         {panel === 'profile' && <ProfileForm onDone={() => setPanel(null)} />}
       </Sheet>
-      <Sheet open={panel === 'password'} onClose={() => setPanel(null)} title="Alterar senha">
-        {panel === 'password' && <PasswordForm onDone={() => setPanel(null)} />}
+      <Sheet open={panel === 'restore'} onClose={() => setPanel(null)} title="Restaurar backup">
+        {panel === 'restore' && <RestoreForm onDone={() => setPanel(null)} />}
+      </Sheet>
+      <Sheet open={panel === 'reset'} onClose={() => setPanel(null)} title="Apagar todos os dados">
+        {panel === 'reset' && <ResetForm onExport={handleExport} />}
       </Sheet>
     </>
   )
@@ -151,9 +187,9 @@ function MenuItem({ icon, label, description, to, onClick }: MenuItemProps) {
 }
 
 function ProfileForm({ onDone }: { onDone: () => void }) {
-  const { user, updateUser } = useAuth()
+  const { profile, rename } = useProfile()
   const toast = useToast()
-  const [name, setName] = useState(user?.name ?? '')
+  const [name, setName] = useState(profile?.name ?? '')
   const [error, setError] = useState<string>()
   const [loading, setLoading] = useState(false)
 
@@ -162,11 +198,11 @@ function ProfileForm({ onDone }: { onDone: () => void }) {
     if (!name.trim()) return setError('Informe o nome')
     setLoading(true)
     try {
-      updateUser(await userApi.updateProfile(name.trim()))
+      await rename(name)
       toast.success('Perfil atualizado')
       onDone()
     } catch (err) {
-      setError(err instanceof ApiError ? (err.fieldErrors.name ?? err.message) : 'Erro ao salvar')
+      setError(err instanceof AppError ? (err.fieldErrors.name ?? err.message) : 'Erro ao salvar')
     } finally {
       setLoading(false)
     }
@@ -182,25 +218,23 @@ function ProfileForm({ onDone }: { onDone: () => void }) {
   )
 }
 
-function PasswordForm({ onDone }: { onDone: () => void }) {
+function RestoreForm({ onDone }: { onDone: () => void }) {
+  const { restore } = useProfile()
   const toast = useToast()
-  const [current, setCurrent] = useState('')
-  const [next, setNext] = useState('')
-  const [errors, setErrors] = useState<Record<string, string>>({})
+  const [file, setFile] = useState<File | null>(null)
+  const [error, setError] = useState<string>()
   const [loading, setLoading] = useState(false)
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
-    if (next.length < 8) return setErrors({ newPassword: 'A nova senha deve ter ao menos 8 caracteres' })
-    setErrors({})
+    if (!file) return setError('Escolha o arquivo de backup')
     setLoading(true)
     try {
-      await userApi.changePassword(current, next)
-      toast.success('Senha alterada')
+      await restore(await file.text())
+      toast.success('Backup restaurado')
       onDone()
     } catch (err) {
-      if (err instanceof ApiError && Object.keys(err.fieldErrors).length > 0) setErrors(err.fieldErrors)
-      else setErrors({ currentPassword: err instanceof Error ? err.message : 'Erro ao alterar senha' })
+      setError(err instanceof Error ? err.message : 'Erro ao restaurar')
     } finally {
       setLoading(false)
     }
@@ -208,25 +242,70 @@ function PasswordForm({ onDone }: { onDone: () => void }) {
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-5" noValidate>
+      <p className="text-sm text-ink-2">
+        Os dados atuais deste navegador serão <strong>substituídos</strong> pelos do arquivo. Se quiser guardá-los,
+        exporte um backup antes.
+      </p>
       <TextField
-        label="Senha atual"
-        type="password"
-        autoComplete="current-password"
-        value={current}
-        onChange={(e) => setCurrent(e.target.value)}
-        error={errors.currentPassword}
-      />
-      <TextField
-        label="Nova senha"
-        type="password"
-        autoComplete="new-password"
-        hint="Mínimo de 8 caracteres"
-        value={next}
-        onChange={(e) => setNext(e.target.value)}
-        error={errors.newPassword}
+        label="Arquivo de backup (.json)"
+        type="file"
+        accept="application/json,.json"
+        onChange={(e) => {
+          setFile(e.target.files?.[0] ?? null)
+          setError(undefined)
+        }}
+        error={error}
       />
       <Button type="submit" size="lg" block loading={loading}>
-        Alterar senha
+        Restaurar
+      </Button>
+    </form>
+  )
+}
+
+const RESET_CONFIRMATION = 'APAGAR'
+
+function ResetForm({ onExport }: { onExport: () => void }) {
+  const { reset } = useProfile()
+  const toast = useToast()
+  const [typed, setTyped] = useState('')
+  const [loading, setLoading] = useState(false)
+
+  async function handleSubmit(event: FormEvent) {
+    event.preventDefault()
+    if (typed.trim().toUpperCase() !== RESET_CONFIRMATION) return
+    setLoading(true)
+    try {
+      await reset()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Erro ao apagar')
+      setLoading(false)
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="flex flex-col gap-5" noValidate>
+      <p className="text-sm text-ink-2">
+        Isso apaga <strong>todos</strong> os dados deste navegador e não pode ser desfeito.{' '}
+        <button type="button" className="font-medium text-accent hover:underline" onClick={onExport}>
+          Exportar um backup antes
+        </button>
+      </p>
+      <TextField
+        label={`Digite ${RESET_CONFIRMATION} para confirmar`}
+        autoComplete="off"
+        value={typed}
+        onChange={(e) => setTyped(e.target.value)}
+      />
+      <Button
+        type="submit"
+        variant="danger"
+        size="lg"
+        block
+        loading={loading}
+        disabled={typed.trim().toUpperCase() !== RESET_CONFIRMATION}
+      >
+        Apagar tudo
       </Button>
     </form>
   )

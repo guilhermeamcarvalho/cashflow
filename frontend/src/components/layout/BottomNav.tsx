@@ -8,18 +8,20 @@ import { BUDGETS, CARDS, DASHBOARD, TRANSACTIONS, type NavItem } from './navigat
 const ITEMS: (NavItem | 'add')[] = [DASHBOARD, TRANSACTIONS, 'add', CARDS, BUDGETS]
 
 /**
- * Barra de navegação flutuante, centralizada na parte inferior da tela
- * (celular e desktop). No celular, ícone + rótulo empilhados; a partir de
- * telas médias, lado a lado.
+ * Barra de navegação flutuante na parte inferior (layout web/celular). No
+ * celular, ícone + rótulo empilhados; em telas médias, lado a lado.
  */
-export function BottomNav() {
+export function BottomNav({ className }: { className?: string }) {
   const { pathname } = useLocation()
   const { openCreate } = useTransactionSheet()
 
   return (
     <nav
       aria-label="Navegação principal"
-      className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] sm:pb-[calc(env(safe-area-inset-bottom)+1.25rem)]"
+      className={clsx(
+        'pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] sm:pb-[calc(env(safe-area-inset-bottom)+1.25rem)]',
+        className,
+      )}
     >
       <div className="dock pointer-events-auto flex w-full max-w-md items-center gap-1 rounded-[1.375rem] p-1.5 sm:w-auto sm:max-w-none">
         {ITEMS.map((item) =>

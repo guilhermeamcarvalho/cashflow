@@ -1,23 +1,12 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { http } from '@/lib/http'
+import { createTransaction, deleteTransaction, listTransactions, updateTransaction } from '@/data/transactions'
 import { queryKeys } from '@/lib/queryKeys'
-import type { Page, Transaction, TransactionInput, TransactionQuery } from '@/types/api'
-
-const BASE = '/api/v1/transactions'
-
-export const transactionsApi = {
-  list: (query: TransactionQuery, signal?: AbortSignal) =>
-    http.get<Page<Transaction>>(BASE, { ...query }, signal),
-  create: (input: TransactionInput) => http.post<Transaction>(BASE, input),
-  update: (id: string, input: TransactionInput) => http.put<Transaction>(`${BASE}/${id}`, input),
-  remove: (id: string, allInstallments = false) =>
-    http.delete(`${BASE}/${id}${allInstallments ? '?allInstallments=true' : ''}`),
-}
+import type { TransactionInput, TransactionQuery } from '@/types/api'
 
 export function useTransactions(query: TransactionQuery) {
   return useQuery({
     queryKey: queryKeys.transactions.list(query),
-    queryFn: ({ signal }) => transactionsApi.list(query, signal),
+    queryFn: () => listTransactions(query),
     placeholderData: keepPreviousData,
   })
 }
@@ -38,7 +27,7 @@ export function useSaveTransaction() {
   const invalidate = useInvalidateMoneyViews()
   return useMutation({
     mutationFn: ({ id, input }: { id?: string; input: TransactionInput }) =>
-      id ? transactionsApi.update(id, input) : transactionsApi.create(input),
+      id ? updateTransaction(id, input) : createTransaction(input),
     onSuccess: invalidate,
   })
 }
@@ -47,7 +36,7 @@ export function useDeleteTransaction() {
   const invalidate = useInvalidateMoneyViews()
   return useMutation({
     mutationFn: ({ id, allInstallments }: { id: string; allInstallments?: boolean }) =>
-      transactionsApi.remove(id, allInstallments),
+      deleteTransaction(id, allInstallments),
     onSuccess: invalidate,
   })
 }

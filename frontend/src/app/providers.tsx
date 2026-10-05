@@ -1,8 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useState, type ReactNode } from 'react'
 import { ToastProvider } from '@/components/ui/Toast'
-import { AuthProvider } from '@/features/auth/AuthContext'
-import { ApiError } from '@/lib/http'
+import { ProfileProvider } from '@/features/profile/ProfileContext'
 import { MonthProvider } from './month'
 import { ThemeProvider } from './theme'
 
@@ -10,11 +9,15 @@ function createQueryClient() {
   return new QueryClient({
     defaultOptions: {
       queries: {
+        // As consultas são locais e baratas; reler ao voltar para a aba mantém
+        // em dia o que depende de "hoje" (status das faturas, lançamentos fixos).
         staleTime: 30_000,
         refetchOnWindowFocus: true,
-        // Não insiste em erros do cliente (4xx): só em falhas de rede/servidor.
-        retry: (failureCount, error) =>
-          !(error instanceof ApiError && error.status >= 400 && error.status < 500) && failureCount < 2,
+        // Erros locais são de regra de negócio: tentar de novo não muda o resultado.
+        retry: false,
+      },
+      mutations: {
+        retry: false,
       },
     },
   })
@@ -27,9 +30,9 @@ export function AppProviders({ children }: { children: ReactNode }) {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <ToastProvider>
-          <AuthProvider>
+          <ProfileProvider>
             <MonthProvider>{children}</MonthProvider>
-          </AuthProvider>
+          </ProfileProvider>
         </ToastProvider>
       </ThemeProvider>
     </QueryClientProvider>

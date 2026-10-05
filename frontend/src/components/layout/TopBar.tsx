@@ -1,17 +1,23 @@
 import clsx from 'clsx'
-import { ChevronDown, LogOut, Monitor, Moon, Repeat, Settings, Sun, Tags } from 'lucide-react'
+import { ChevronDown, Monitor, Moon, Repeat, Settings, Sun, Tags } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link } from 'react-router'
 import { useTheme, type ThemePreference } from '@/app/theme'
 import { Avatar } from '@/components/ui/Avatar'
 import { useDismissOnOutsideClick } from '@/components/ui/popover'
-import { useAuth } from '@/features/auth/AuthContext'
+import { STORAGE_PLACE } from '@/data/desktop'
+import { useProfile } from '@/features/profile/ProfileContext'
 import { Logo } from './Logo'
 
-/** Barra superior: marca à esquerda e menu da conta à direita. */
-export function TopBar() {
+/** Barra superior (layout web/celular): marca à esquerda e menu do usuário à direita. */
+export function TopBar({ className }: { className?: string }) {
   return (
-    <header className="sticky top-0 z-30 border-b border-line/70 bg-bg/75 pt-[env(safe-area-inset-top)] backdrop-blur-xl">
+    <header
+      className={clsx(
+        'sticky top-0 z-30 border-b border-line/70 bg-bg/75 pt-[env(safe-area-inset-top)] backdrop-blur-xl',
+        className,
+      )}
+    >
       <div className="mx-auto flex h-14 w-full max-w-6xl items-center justify-between px-4 sm:px-6 lg:px-10">
         <Link to="/" aria-label="Cashflow — início">
           <Logo />
@@ -22,14 +28,14 @@ export function TopBar() {
   )
 }
 
-const THEME_CYCLE: Record<ThemePreference, { next: ThemePreference; label: string; icon: ReactNode }> = {
+export const THEME_CYCLE: Record<ThemePreference, { next: ThemePreference; label: string; icon: ReactNode }> = {
   system: { next: 'light', label: 'Tema: sistema', icon: <Monitor className="size-4" /> },
   light: { next: 'dark', label: 'Tema: claro', icon: <Sun className="size-4" /> },
   dark: { next: 'system', label: 'Tema: escuro', icon: <Moon className="size-4" /> },
 }
 
 function UserMenu() {
-  const { user, logout } = useAuth()
+  const { profile } = useProfile()
   const { preference, setPreference } = useTheme()
   const [open, setOpen] = useState(false)
   const triggerRef = useRef<HTMLButtonElement>(null)
@@ -62,13 +68,13 @@ function UserMenu() {
         type="button"
         aria-haspopup="menu"
         aria-expanded={open}
-        aria-label="Menu da conta"
+        aria-label="Menu"
         onClick={() => setOpen((value) => !value)}
         className="flex items-center gap-2 rounded-full py-1 pr-2 pl-1 transition-colors hover:bg-surface-3"
       >
-        <Avatar name={user?.name ?? ''} />
+        <Avatar name={profile?.name ?? ''} />
         <span className="hidden max-w-40 truncate text-sm font-medium text-ink sm:block">
-          {user?.name.split(' ')[0]}
+          {profile?.name.split(' ')[0]}
         </span>
         <ChevronDown
           className={clsx('size-4 text-ink-3 transition-transform duration-200', open && 'rotate-180')}
@@ -80,13 +86,15 @@ function UserMenu() {
         <div
           ref={menuRef}
           role="menu"
-          aria-label="Conta"
+          aria-label="Menu"
           className="popover animate-pop absolute top-full right-0 z-50 mt-2 w-64 origin-top-right rounded-2xl p-1.5"
         >
-          <div className="mb-1 border-b border-line px-2.5 pt-1.5 pb-2.5">
-            <p className="truncate text-sm font-semibold text-ink">{user?.name}</p>
-            <p className="truncate text-xs text-ink-3">{user?.email}</p>
-          </div>
+          {profile?.name && (
+            <div className="mb-1 border-b border-line px-2.5 pt-1.5 pb-2.5">
+              <p className="truncate text-sm font-semibold text-ink">{profile.name}</p>
+              <p className="truncate text-xs text-ink-3">Dados salvos {STORAGE_PLACE}</p>
+            </div>
+          )}
           <Link to="/recurring" role="menuitem" onClick={close} className={item}>
             <Repeat className="size-4" aria-hidden /> Lançamentos fixos
           </Link>
@@ -98,10 +106,6 @@ function UserMenu() {
           </Link>
           <button type="button" role="menuitem" onClick={() => setPreference(theme.next)} className={item}>
             {theme.icon} {theme.label}
-          </button>
-          <div className="my-1 border-t border-line" />
-          <button type="button" role="menuitem" onClick={logout} className={clsx(item, 'text-critical hover:text-critical')}>
-            <LogOut className="size-4" aria-hidden /> Sair da conta
           </button>
         </div>
       )}

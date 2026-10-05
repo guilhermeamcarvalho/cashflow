@@ -9,11 +9,15 @@
     "preview": "vite preview",
     "lint": "oxlint",
     "typecheck": "tsc -b",
-    "test": "vitest run"
+    "test": "vitest run",
+    "desktop": "tauri dev",
+    "desktop:build": "tauri build"
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.3.0",
     "@tanstack/react-query": "^5.104.0",
+    "@tauri-apps/api": "^2.12.1",
+    "@tauri-apps/plugin-dialog": "^2.8.1",
     "clsx": "^2.1.1",
     "lucide-react": "^1.49.0",
     "react": "^19.2.8",
@@ -23,6 +27,7 @@
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",
+    "@tauri-apps/cli": "^2.12.1",
     "@types/node": "^24.13.3",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.7",

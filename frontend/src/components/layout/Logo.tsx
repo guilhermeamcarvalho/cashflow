@@ -1,7 +1,14 @@
 import clsx from 'clsx'
 
+interface LogoProps {
+  className?: string
+  inverted?: boolean
+  /** Esconde o nome em telas estreitas (barra lateral recolhida). */
+  collapsible?: boolean
+}
+
 /** Marca do produto: símbolo + nome. */
-export function Logo({ className, inverted = false }: { className?: string; inverted?: boolean }) {
+export function Logo({ className, inverted = false, collapsible = false }: LogoProps) {
   return (
     <span className={clsx('inline-flex items-center gap-2.5', className)}>
       <svg viewBox="0 0 64 64" className="size-7 shrink-0" aria-hidden>
@@ -17,7 +24,13 @@ export function Logo({ className, inverted = false }: { className?: string; inve
           <path d="M38 25h9v9" />
         </g>
       </svg>
-      <span className={clsx('text-[1.05rem] font-semibold tracking-tight', inverted ? 'text-white' : 'text-ink')}>
+      <span
+        className={clsx(
+          'text-[1.05rem] font-semibold tracking-tight',
+          inverted ? 'text-white' : 'text-ink',
+          collapsible && 'hidden lg:inline',
+        )}
+      >
         Cashflow
       </span>
     </span>

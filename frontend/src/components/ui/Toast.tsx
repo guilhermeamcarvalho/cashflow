@@ -1,6 +1,8 @@
+import clsx from 'clsx'
 import { CircleAlert, CircleCheck } from 'lucide-react'
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
+import { isDesktop } from '@/data/desktop'
 
 type ToastTone = 'success' | 'error'
 
@@ -40,7 +42,14 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       {createPortal(
         <div
           aria-live="polite"
-          className="pointer-events-none fixed inset-x-0 top-[calc(env(safe-area-inset-top)+0.75rem)] z-[60] flex flex-col items-center gap-2 px-4 sm:inset-x-auto sm:top-[calc(env(safe-area-inset-top)+4.5rem)] sm:right-6 sm:items-end"
+          className={clsx(
+            'pointer-events-none fixed z-[60] flex gap-2',
+            // Layout de app (barra lateral): canto inferior direito, como nos apps de desktop.
+            // Celular: no topo, longe da navegação inferior.
+            isDesktop
+              ? 'right-6 bottom-6 flex-col-reverse items-end'
+              : 'inset-x-0 top-[calc(env(safe-area-inset-top)+0.75rem)] flex-col items-center px-4 sm:inset-x-auto sm:top-[calc(env(safe-area-inset-top)+4.5rem)] sm:right-6 sm:items-end lg:top-auto lg:bottom-6 lg:flex-col-reverse',
+          )}
         >
           {items.map((item) => (
             <div

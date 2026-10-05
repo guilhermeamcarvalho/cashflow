@@ -1,33 +1,27 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { http, request } from '@/lib/http'
+import {
+  createCreditCard,
+  deleteCreditCard,
+  getInvoice,
+  listCreditCards,
+  markInvoicePaid,
+  unmarkInvoicePaid,
+  updateCreditCard,
+} from '@/data/creditCards'
 import { queryKeys } from '@/lib/queryKeys'
-import type { CreditCard, CreditCardInput, Invoice, InvoiceSummary, YearMonth } from '@/types/api'
-
-const BASE = '/api/v1/credit-cards'
-
-export const creditCardsApi = {
-  list: (signal?: AbortSignal) => http.get<CreditCard[]>(BASE, undefined, signal),
-  create: (input: CreditCardInput) => http.post<CreditCard>(BASE, input),
-  update: (id: string, input: CreditCardInput) => http.put<CreditCard>(`${BASE}/${id}`, input),
-  remove: (id: string) => http.delete(`${BASE}/${id}`),
-  invoice: (id: string, month: YearMonth, signal?: AbortSignal) =>
-    http.get<Invoice>(`${BASE}/${id}/invoices/${month}`, undefined, signal),
-  pay: (id: string, month: YearMonth) => http.put<InvoiceSummary>(`${BASE}/${id}/invoices/${month}/payment`),
-  unpay: (id: string, month: YearMonth) =>
-    request<InvoiceSummary>(`${BASE}/${id}/invoices/${month}/payment`, { method: 'DELETE' }),
-}
+import type { CreditCardInput, YearMonth } from '@/types/api'
 
 export function useCreditCards() {
   return useQuery({
     queryKey: queryKeys.creditCards.all,
-    queryFn: ({ signal }) => creditCardsApi.list(signal),
+    queryFn: listCreditCards,
   })
 }
 
 export function useInvoice(cardId: string | undefined, month: YearMonth) {
   return useQuery({
     queryKey: queryKeys.creditCards.invoice(cardId ?? '', month),
-    queryFn: ({ signal }) => creditCardsApi.invoice(cardId!, month, signal),
+    queryFn: () => getInvoice(cardId!, month),
     enabled: Boolean(cardId),
     placeholderData: keepPreviousData,
   })
@@ -42,21 +36,21 @@ export function useSaveCreditCard() {
   const invalidate = useInvalidateCards()
   return useMutation({
     mutationFn: ({ id, input }: { id?: string; input: CreditCardInput }) =>
-      id ? creditCardsApi.update(id, input) : creditCardsApi.create(input),
+      id ? updateCreditCard(id, input) : createCreditCard(input),
     onSuccess: invalidate,
   })
 }
 
 export function useDeleteCreditCard() {
   const invalidate = useInvalidateCards()
-  return useMutation({ mutationFn: creditCardsApi.remove, onSuccess: invalidate })
+  return useMutation({ mutationFn: deleteCreditCard, onSuccess: invalidate })
 }
 
 export function useInvoicePayment() {
   const invalidate = useInvalidateCards()
   return useMutation({
     mutationFn: ({ cardId, month, paid }: { cardId: string; month: YearMonth; paid: boolean }) =>
-      paid ? creditCardsApi.pay(cardId, month) : creditCardsApi.unpay(cardId, month),
+      paid ? markInvoicePaid(cardId, month) : unmarkInvoicePaid(cardId, month),
     onSuccess: invalidate,
   })
 }

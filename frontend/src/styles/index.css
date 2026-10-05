@@ -7,7 +7,8 @@
  *
  *  Visual sóbrio e moderno: superfícies sólidas, bordas finas, sombras
  *  suaves, cantos arredondados e números tabulares. A navegação fica numa
- *  barra flutuante translúcida na parte inferior (.dock).
+ *  barra lateral (app desktop e telas largas) ou numa barra flutuante
+ *  translúcida na parte inferior (.dock, no celular).
  *
  *  Camadas:
  *   1. Tokens (variáveis CSS) para tema claro e escuro.
@@ -261,6 +262,32 @@
   .no-scrollbar::-webkit-scrollbar {
     display: none;
   }
+}
+
+/* App desktop (Tauri) --------------------------------------------------------
+ * Comportamento de aplicativo nativo em vez de página web: a interface não é
+ * selecionável (só campos e textos marcados com .selectable), cursor padrão
+ * nos botões, sem "elástico" de rolagem e sem arrastar links/imagens.
+ * O atributo data-app é definido em main.tsx.
+ */
+html[data-app] {
+  overscroll-behavior: none;
+}
+html[data-app] body {
+  background: var(--bg);
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: default;
+}
+html[data-app] :is(input, textarea, [contenteditable='true'], .selectable) {
+  user-select: text;
+  -webkit-user-select: text;
+}
+html[data-app] :is(button, a, [role='button'], [role='menuitem'], [role='option']) {
+  cursor: default;
+}
+html[data-app] :is(a, img) {
+  -webkit-user-drag: none;
 }
 
 /* Animações de entrada (curtas e discretas) -------------------------------- */
