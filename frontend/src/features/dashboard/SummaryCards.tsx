@@ -2,6 +2,7 @@ import clsx from 'clsx'
 import { ArrowDownRight, ArrowUpRight, ChevronRight, Minus } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Link } from 'react-router'
+import { AnimatedNumber } from '@/components/ui/AnimatedNumber'
 import { Card } from '@/components/ui/Card'
 import { BudgetBar, BudgetStatusLabel } from '@/features/budgets/BudgetProgress'
 import { formatCurrency, percentChange } from '@/lib/format'
@@ -18,12 +19,12 @@ interface SummaryCardsProps {
 /** Indicadores do mês: saldo, receitas, despesas e uso do orçamento. */
 export function SummaryCards({ current, previous, previousLabel, budgeted, budgetSpent }: SummaryCardsProps) {
   return (
-    <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
+    <div className="stagger grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
       <Kpi
         hero
         className="col-span-2 sm:col-span-1"
         label="Saldo do mês"
-        value={formatCurrency(current.balance)}
+        value={<AnimatedNumber value={current.balance} format={formatCurrency} />}
         footer={
           <span className="text-white/70">
             {current.balance < 0 ? 'Despesas acima das receitas' : 'Receitas menos despesas'}
@@ -32,12 +33,12 @@ export function SummaryCards({ current, previous, previousLabel, budgeted, budge
       />
       <Kpi
         label="Receitas"
-        value={formatCurrency(current.income)}
+        value={<AnimatedNumber value={current.income} format={formatCurrency} />}
         footer={<Delta current={current.income} previous={previous.income} label={previousLabel} higherIsBetter />}
       />
       <Kpi
         label="Despesas"
-        value={formatCurrency(current.expenses)}
+        value={<AnimatedNumber value={current.expenses} format={formatCurrency} />}
         footer={<Delta current={current.expenses} previous={previous.expenses} label={previousLabel} />}
       />
       <BudgetKpi budgeted={budgeted} spent={budgetSpent} />
@@ -50,7 +51,7 @@ interface KpiProps {
   hero?: boolean
   className?: string
   label: string
-  value: string
+  value: ReactNode
   valueClassName?: string
   footer: ReactNode
 }

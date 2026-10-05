@@ -2,7 +2,7 @@ import type { Page, Transaction, TransactionInput, TransactionQuery } from '@/ty
 import { addMonths, addMonthsToDate } from '@/lib/month'
 import { newId, timestamp } from './clock'
 import { businessRule, notFound } from './errors'
-import { byNewest, findCategory, toTransaction } from './mappers'
+import { byPaymentDate, findCategory, paymentMonthOf, toTransaction } from './mappers'
 import { resolvePayment } from './creditCards'
 import { generateDue } from './recurring'
 import type { Database, TransactionRecord } from './schema'
@@ -22,14 +22,14 @@ export async function listTransactions(query: TransactionQuery): Promise<Page<Tr
     const matches = db.transactions
       .filter(
         (t) =>
-          t.date.startsWith(query.month) &&
+          paymentMonthOf(t) === query.month &&
           (!query.type || t.type === query.type) &&
           (!query.categoryId || t.categoryId === query.categoryId) &&
           (!query.paymentMethod || t.paymentMethod === query.paymentMethod) &&
           (!query.creditCardId || t.creditCardId === query.creditCardId) &&
           (!search || t.description.toLocaleLowerCase('pt-BR').includes(search)),
       )
-      .sort(byNewest)
+      .sort(byPaymentDate(db))
     return {
       content: matches.slice(page * size, (page + 1) * size).map((t) => toTransaction(db, t)),
       page,

@@ -88,12 +88,20 @@ export function TransactionForm({ transaction, onDone }: TransactionFormProps) {
         })
         toast.success(type === 'EXPENSE' ? 'Despesa fixa criada' : 'Receita fixa criada')
       } else {
-        await save.mutateAsync({
+        const saved = await save.mutateAsync({
           id: transaction?.id,
           input: { ...base, date, installments: count > 1 ? count : undefined },
         })
+        // No crédito a compra aparece no mês da fatura, não no mês da compra: avisa onde ela foi parar.
+        const invoice = saved.invoiceMonth ? ` na fatura de ${formatMonth(saved.invoiceMonth).toLowerCase()}` : ''
         toast.success(
-          transaction ? 'Lançamento atualizado' : count > 1 ? `Compra parcelada em ${count}x` : 'Lançamento adicionado',
+          transaction
+            ? 'Lançamento atualizado'
+            : count > 1
+              ? `Compra parcelada em ${count}x, a 1ª${invoice}`
+              : saved.invoiceMonth
+                ? `Compra lançada${invoice}`
+                : 'Lançamento adicionado',
         )
       }
       onDone()

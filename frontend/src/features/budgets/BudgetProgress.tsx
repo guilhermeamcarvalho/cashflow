@@ -47,7 +47,7 @@ export function BudgetBar({ percentUsed, label }: { percentUsed: number; label: 
       className="h-1.5 w-full overflow-hidden rounded-full bg-surface-3"
     >
       <div
-        className={clsx('h-full rounded-full transition-[width] duration-700 ease-fluid', meta.bar)}
+        className={clsx('animate-grow h-full rounded-full transition-[width] duration-700 ease-fluid', meta.bar)}
         style={{ width: `${Math.min(percentUsed, 100)}%` }}
       />
     </div>

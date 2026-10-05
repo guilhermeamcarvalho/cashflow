@@ -12,7 +12,7 @@ import type {
 } from '@/types/api'
 import { addMonths, daysInMonth, monthsBetween } from '@/lib/month'
 import { businessRule } from './errors'
-import { byNewest, findCategory, toTransaction } from './mappers'
+import { byPaymentDate, findCategory, paymentDateOf, paymentMonthOf, toTransaction } from './mappers'
 import { fromCents, percentOf } from './money'
 import { generateDue } from './recurring'
 import type { Database, TransactionRecord } from './schema'
@@ -21,7 +21,8 @@ import { read } from './store'
 /** Limite do intervalo da série mensal. */
 const MAX_MONTHS = 24
 
-const inMonth = (db: Database, month: YearMonth) => db.transactions.filter((t) => t.date.startsWith(month))
+/** Lançamentos que pesam no caixa do mês (compras no crédito, no mês da fatura). */
+const inMonth = (db: Database, month: YearMonth) => db.transactions.filter((t) => paymentMonthOf(t) === month)
 
 /** Soma receitas e despesas (em centavos). */
 function sum(transactions: TransactionRecord[]): { income: number; expenses: number } {
@@ -77,7 +78,7 @@ export async function monthlySummary(month: YearMonth): Promise<MonthlySummary> 
       budgeted: fromCents(budgets.reduce((acc, b) => acc + b.amount, 0)),
       budgetSpent: fromCents(budgetSpent),
       expensesByCategory: slices,
-      recentTransactions: [...transactions].sort(byNewest).slice(0, 5).map((t) => toTransaction(db, t)),
+      recentTransactions: [...transactions].sort(byPaymentDate(db)).slice(0, 5).map((t) => toTransaction(db, t)),
     }
   })
 }
@@ -91,7 +92,7 @@ export async function monthlyTotals({ from, to, categoryId }: MonthlyTotalsQuery
     if (categoryId) findCategory(db, categoryId)
     const byMonth = new Map<YearMonth, TransactionRecord[]>()
     for (const t of db.transactions) {
-      const month = t.date.slice(0, 7)
+      const month = paymentMonthOf(t)
       if (month < from || month > to || (categoryId && t.categoryId !== categoryId)) continue
       const list = byMonth.get(month)
       if (list) list.push(t)
@@ -110,11 +111,18 @@ export async function dailyTotals({ month, categoryId }: DailyTotalsQuery): Prom
   await generateDue()
   return read((db) => {
     if (categoryId) findCategory(db, categoryId)
-    const transactions = inMonth(db, month).filter((t) => !categoryId || t.categoryId === categoryId)
+    const byDay = new Map<string, TransactionRecord[]>()
+    for (const t of inMonth(db, month)) {
+      if (categoryId && t.categoryId !== categoryId) continue
+      const date = paymentDateOf(db, t)
+      const list = byDay.get(date)
+      if (list) list.push(t)
+      else byDay.set(date, [t])
+    }
     const days: DayPoint[] = []
     for (let day = 1; day <= daysInMonth(month); day++) {
       const date = `${month}-${String(day).padStart(2, '0')}`
-      days.push({ date, ...toTotals(sum(transactions.filter((t) => t.date === date))) })
+      days.push({ date, ...toTotals(sum(byDay.get(date) ?? [])) })
     }
     return { month, categoryId: categoryId ?? null, days }
   })

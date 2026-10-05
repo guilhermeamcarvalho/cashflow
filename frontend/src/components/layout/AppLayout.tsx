@@ -43,9 +43,12 @@ function Shell() {
             isDesktop ? 'px-6 pb-10' : 'px-4 pb-[calc(env(safe-area-inset-bottom)+7.5rem)] sm:px-6 lg:pb-12',
           )}
         >
-          <Suspense fallback={<Spinner />}>
-            <Outlet />
-          </Suspense>
+          {/* key: cada tela nova entra com a animação de página */}
+          <div key={pathname} className="animate-page">
+            <Suspense fallback={<Spinner />}>
+              <Outlet />
+            </Suspense>
+          </div>
         </main>
       </div>
       {!isDesktop && <BottomNav className="lg:hidden" />}
@@ -69,7 +72,7 @@ function useAppShortcuts() {
         openCreate()
       } else if (target) {
         event.preventDefault()
-        navigate(target)
+        navigate(target, { viewTransition: true })
       }
     }
     document.addEventListener('keydown', onKey)

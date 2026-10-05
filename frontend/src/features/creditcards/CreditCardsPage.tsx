@@ -146,7 +146,7 @@ function CardVisual({ card, selected, onSelect }: { card: CreditCard; selected: 
             <>
               <span className="num block truncate">Disponível {formatCurrency(card.availableLimit ?? 0)}</span>
               <span className="mt-1.5 block h-1 overflow-hidden rounded-full bg-white/20">
-                <span className="block h-full rounded-full bg-white" style={{ width: `${usedPercent}%` }} />
+                <span className="animate-grow block h-full rounded-full bg-white" style={{ width: `${usedPercent}%` }} />
               </span>
             </>
           ) : (

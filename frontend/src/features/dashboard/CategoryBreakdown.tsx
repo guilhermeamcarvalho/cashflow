@@ -32,7 +32,7 @@ export function CategoryBreakdown({ slices }: { slices: CategorySlice[] }) {
               </div>
               <div className="h-1.5 overflow-hidden rounded-full bg-surface-3" aria-hidden>
                 <div
-                  className="h-full rounded-full transition-[width] duration-700 ease-fluid"
+                  className="animate-grow h-full rounded-full transition-[width] duration-700 ease-fluid"
                   style={{ width: `${largest > 0 ? (slice.total / largest) * 100 : 0}%`, background: slice.color }}
                 />
               </div>

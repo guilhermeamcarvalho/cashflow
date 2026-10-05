@@ -73,6 +73,13 @@ continuaram iguais quando o back-end foi removido.
   seguinte. Se o vencimento cai depois do fechamento, vence no mesmo mês; senão,
   no seguinte. Dias inexistentes (31 em abril) viram o último dia do mês. A
   regra fica em `lib/creditCard.ts`, compartilhada com o formulário.
+- **Mês de pagamento (regime de caixa):** compras no crédito contam no mês
+  em que a fatura **vence**, não no mês da compra. Uma compra de 06/10 num
+  cartão que fecha dia 5 e vence dia 12 aparece em novembro (dia 12/11) em
+  Lançamentos, Dashboard, séries mensais/diárias e Orçamentos. Os demais
+  lançamentos usam a própria data. Cada lançamento expõe `date` (compra) e
+  `paymentDate` (pagamento); veja `paymentMonthOf`/`paymentDateOf` em
+  `mappers.ts`. Na lista, as compras no cartão ficam agrupadas por fatura.
 - **Parcelas:** o total é dividido em partes iguais (centavos que sobram na
   1ª); a parcela *k* é datada *k* meses depois da compra e entra na fatura *k*
   meses depois da primeira.

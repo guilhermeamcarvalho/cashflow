@@ -38,7 +38,14 @@ export interface Transaction {
   type: TransactionType
   description: string
   amount: number
+  /** Data da compra / do lançamento. */
   date: string
+  /**
+   * Quando o dinheiro sai (ou entra): a própria data ou, nas compras no
+   * crédito, o vencimento da fatura. Listas, dashboard e orçamentos usam esta
+   * data para decidir o mês.
+   */
+  paymentDate: string
   notes: string | null
   category: Category
   paymentMethod: PaymentMethod | null

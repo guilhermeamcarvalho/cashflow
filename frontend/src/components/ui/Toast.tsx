@@ -55,7 +55,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             <div
               key={item.id}
               role="status"
-              className="popover animate-rise flex max-w-sm items-center gap-2.5 rounded-xl py-2.5 pr-4 pl-3 text-sm font-medium text-ink"
+              className="popover animate-toast flex max-w-sm items-center gap-2.5 rounded-xl py-2.5 pr-4 pl-3 text-sm font-medium text-ink"
             >
               {item.tone === 'success' ? (
                 <CircleCheck className="size-4 shrink-0 text-good" aria-hidden />

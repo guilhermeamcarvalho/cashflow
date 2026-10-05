@@ -24,7 +24,7 @@ export function BottomNav({ className }: { className?: string }) {
       )}
     >
       <div className="dock pointer-events-auto flex w-full max-w-md items-center gap-1 rounded-[1.375rem] p-1.5 sm:w-auto sm:max-w-none">
-        {ITEMS.map((item) =>
+        {ITEMS.map((item, index) =>
           item === 'add' ? (
             <button
               key="add"
@@ -41,19 +41,28 @@ export function BottomNav({ className }: { className?: string }) {
               key={item.to}
               to={item.to}
               end={item.to === '/'}
+              viewTransition
               className={clsx(
-                'flex h-12 flex-1 flex-col items-center justify-center gap-0.5 rounded-2xl px-2 transition-colors sm:flex-none sm:flex-row sm:gap-2 sm:px-4',
-                item.match(pathname)
-                  ? 'bg-surface-3 text-ink'
-                  : 'text-ink-3 hover:bg-surface-3/60 hover:text-ink-2',
+                'relative flex h-12 flex-1 flex-col items-center justify-center gap-0.5 rounded-2xl px-2 transition-colors sm:flex-none sm:flex-row sm:gap-2 sm:px-4',
+                item.match(pathname) ? 'text-ink' : 'text-ink-3 hover:bg-surface-3/60 hover:text-ink-2',
               )}
             >
-              <item.icon
-                className={clsx('size-5 shrink-0 sm:size-[1.125rem]', item.match(pathname) && 'text-accent')}
-                strokeWidth={2}
-                aria-hidden
-              />
-              <span className="text-[0.6875rem] font-medium whitespace-nowrap sm:text-sm">{item.label}</span>
+              {/* Fundo do item ativo: desliza entre os itens (View Transitions). */}
+              {item.match(pathname) && (
+                <span className="absolute inset-0 rounded-2xl bg-surface-3" style={{ viewTransitionName: 'dock-indicator' }} aria-hidden />
+              )}
+              {/* Conteúdo numa camada própria, acima do indicador enquanto ele desliza. */}
+              <span
+                className="relative flex flex-col items-center gap-0.5 sm:flex-row sm:gap-2"
+                style={{ viewTransitionName: `dock-item-${index}` }}
+              >
+                <item.icon
+                  className={clsx('size-5 shrink-0 sm:size-[1.125rem]', item.match(pathname) && 'text-accent')}
+                  strokeWidth={2}
+                  aria-hidden
+                />
+                <span className="text-[0.6875rem] font-medium whitespace-nowrap sm:text-sm">{item.label}</span>
+              </span>
             </NavLink>
           ),
         )}

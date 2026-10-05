@@ -12,7 +12,7 @@ import { Select } from '@/components/ui/Select'
 import { useCreditCards } from '@/features/creditcards/api'
 import { PAYMENT_ICONS } from '@/features/creditcards/PaymentPicker'
 import { PAYMENT_METHOD_LABELS, PAYMENT_METHODS } from '@/lib/creditCard'
-import { formatCurrency, formatDayHeading } from '@/lib/format'
+import { formatCurrency, formatDayHeading, formatShortDate } from '@/lib/format'
 import type { PaymentMethod, Transaction, TransactionType } from '@/types/api'
 import { useTransactions } from './api'
 import { TransactionRow } from './TransactionRow'
@@ -134,11 +134,20 @@ export default function TransactionsPage() {
             action={!deferredSearch && <Button onClick={openCreate}>Adicionar lançamento</Button>}
           />
         ) : (
-          <div className={clsx(query.isFetching && 'opacity-70 transition-opacity')}>
+          <div className={clsx('stagger', query.isFetching && 'opacity-70 transition-opacity')}>
             {groups.map((group) => (
-              <section key={group.date} className="animate-rise">
+              <section key={group.key} className="animate-rise">
                 <div className="flex items-baseline justify-between border-b border-line bg-surface-2 px-4 py-2 sm:px-5">
-                  <h2 className="text-xs font-medium text-ink-2">{formatDayHeading(group.date)}</h2>
+                  <h2 className="flex items-center gap-1.5 text-xs font-medium text-ink-2">
+                    {group.card ? (
+                      <>
+                        <span className="h-2 w-3 rounded-[2px]" style={{ background: group.card.color }} aria-hidden />
+                        Fatura {group.card.name} · vence {formatShortDate(group.date)}
+                      </>
+                    ) : (
+                      formatDayHeading(group.date)
+                    )}
+                  </h2>
                   <span className={clsx('num text-xs font-medium', group.net > 0 ? 'text-income' : 'text-ink-3')}>
                     {formatDayNet(group.net)}
                   </span>
@@ -170,18 +179,25 @@ export default function TransactionsPage() {
 }
 
 interface DayGroup {
+  key: string
+  /** Dia em que o grupo pesa no caixa (no cartão, o vencimento da fatura). */
   date: string
+  /** Compras no crédito ficam agrupadas pela fatura do cartão. */
+  card: Transaction['creditCard']
   net: number
   items: Transaction[]
 }
 
+/** Agrupa pelo dia de pagamento; compras no crédito, por fatura (cartão + vencimento). */
 function groupByDay(transactions: Transaction[]): DayGroup[] {
   const groups = new Map<string, DayGroup>()
   for (const transaction of transactions) {
-    const group = groups.get(transaction.date) ?? { date: transaction.date, net: 0, items: [] }
+    const card = transaction.invoiceMonth ? transaction.creditCard : null
+    const key = card ? `${transaction.paymentDate}|${card.id}` : transaction.paymentDate
+    const group = groups.get(key) ?? { key, date: transaction.paymentDate, card, net: 0, items: [] }
     group.items.push(transaction)
     group.net += transaction.type === 'INCOME' ? transaction.amount : -transaction.amount
-    groups.set(transaction.date, group)
+    groups.set(key, group)
   }
   return [...groups.values()]
 }

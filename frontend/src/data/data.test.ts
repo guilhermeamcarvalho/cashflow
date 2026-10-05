@@ -4,7 +4,7 @@ import { budgetOverview, copyBudgets, upsertBudget } from './budgets'
 import { deleteCategory, listCategories } from './categories'
 import { setClock } from './clock'
 import { createCreditCard, deleteCreditCard, getInvoice, listCreditCards, markInvoicePaid } from './creditCards'
-import { monthlySummary, monthlyTotals } from './dashboard'
+import { dailyTotals, monthlySummary, monthlyTotals } from './dashboard'
 import { AppError } from './errors'
 import { createProfile, getProfile } from './profile'
 import { createRecurring, deleteRecurring, listRecurring, updateRecurring } from './recurring'
@@ -129,7 +129,13 @@ describe('cartão de crédito', () => {
     expect(june.summary).toMatchObject({ total: 333.33, closingDate: '2025-06-03', dueDate: '2025-06-10', status: 'OVERDUE' })
     expect(june.transactions[0]).toMatchObject({ date: '2025-05-05', installmentNumber: 3 })
 
-    expect((await listTransactions({ month: '2025-03', creditCardId: card.id })).totalElements).toBe(2)
+    // listas por mês de pagamento: em março só o livro; a 1ª parcela do fone vence em abril
+    expect((await listTransactions({ month: '2025-03', creditCardId: card.id })).totalElements).toBe(1)
+    expect((await listTransactions({ month: '2025-04', creditCardId: card.id })).content[0]).toMatchObject({
+      description: 'Fone',
+      date: '2025-03-05',
+      paymentDate: '2025-04-10',
+    })
     expect((await listTransactions({ month: '2025-03', paymentMethod: 'PIX' })).totalElements).toBe(0)
 
     expect((await markInvoicePaid(card.id, '2025-03')).status).toBe('PAID')
@@ -145,12 +151,36 @@ describe('cartão de crédito', () => {
     expect(income).toMatchObject({ paymentMethod: null, creditCard: null })
 
     // editar uma parcela sem mudar data/cartão mantém a fatura dela
-    const second = (await listTransactions({ month: '2025-04', creditCardId: card.id })).content[0]
+    const second = (await listTransactions({ month: '2025-05', creditCardId: card.id })).content[0]
+    expect(second).toMatchObject({ installmentNumber: 2, date: '2025-04-05' })
     expect((await updateTransaction(second.id, { ...second, categoryId: shopping, amount: 300, ...credit })).invoiceMonth).toBe('2025-05')
 
     expect((await rejection(deleteCreditCard(card.id))).status).toBe(409)
     await deleteTransaction(first.id, true)
     expect((await getInvoice(card.id, '2025-06')).transactions).toHaveLength(0)
+  })
+})
+
+describe('compras no crédito contam no mês em que a fatura é paga', () => {
+  it('lista, dashboard, série diária e orçamento usam o vencimento da fatura', async () => {
+    const shopping = await categoryId('Compras')
+    // Inter: fecha dia 5, vence dia 12
+    const card = await createCreditCard({ name: 'Inter', color: '#FF7A00', closingDay: 5, dueDay: 12 })
+    const credit = { paymentMethod: 'CREDIT' as const, creditCardId: card.id }
+    await createTransaction({ categoryId: shopping, description: 'Lego', amount: 59.8, date: '2026-10-06', ...credit })
+    await createTransaction({ categoryId: shopping, description: 'Pix', amount: 10, date: '2026-10-06', paymentMethod: 'PIX' })
+    await upsertBudget({ categoryId: shopping, month: '2026-11', amount: 100 })
+
+    // comprado em 06/10, depois do fechamento: fatura que vence em 12/11
+    expect((await listTransactions({ month: '2026-10' })).content.map((t) => t.description)).toEqual(['Pix'])
+    const november = await listTransactions({ month: '2026-11' })
+    expect(november.content[0]).toMatchObject({ description: 'Lego', date: '2026-10-06', paymentDate: '2026-11-12' })
+
+    expect((await monthlySummary('2026-10')).current.expenses).toBe(10)
+    expect((await monthlySummary('2026-11')).current.expenses).toBe(59.8)
+    const days = (await dailyTotals({ month: '2026-11' })).days
+    expect(days.find((d) => d.date === '2026-11-12')?.expenses).toBe(59.8)
+    expect((await budgetOverview('2026-11')).items[0]).toMatchObject({ spent: 59.8 })
   })
 })
 

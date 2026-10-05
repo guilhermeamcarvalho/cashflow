@@ -114,12 +114,27 @@ Definido em `src/styles/index.css`, em quatro camadas:
 
 Tipografia:
 
-- Fonte **Manrope** (variável), empacotada via `@fontsource-variable/manrope` —
-  servida junto com o app, sem dependência do Google Fonts; o navegador baixa
-  só o subconjunto de caracteres necessário.
+- Fonte **Figtree** (variável), empacotada via `@fontsource-variable/figtree` —
+  servida junto com o app (funciona offline no desktop), sem dependência do
+  Google Fonts. Valores monetários usam `.num` (dígitos tabulares, que a
+  Figtree suporta) para alinharem em colunas.
 - Escala base de **17px** no celular e **18px** a partir de 768px (definida no
   `html`). Como o Tailwind trabalha em `rem`, espaçamentos e raios acompanham a
   escala proporcionalmente.
+
+Animações (classes em `index.css`, todas desligadas por `prefers-reduced-motion`):
+
+| Onde | Como |
+|---|---|
+| Troca de tela | `.animate-page` no conteúdo (chave = rota), sobe levemente enquanto aparece |
+| Item ativo da navegação | View Transitions: o fundo do item (`nav-indicator` / `dock-indicator`) desliza até o novo item; o conteúdo de cada item tem nome próprio para ficar acima dele |
+| Cartões e listas | `.animate-rise` + `.stagger` no contêiner: entram em cascata |
+| Valores do dashboard | `AnimatedNumber`: contam do valor anterior até o novo |
+| Barras (orçamento, categorias, limite) | `.animate-grow`: crescem a partir da esquerda |
+| Painéis (`Sheet`) | entrada e **saída** animadas; o conteúdo fica na tela até a saída terminar |
+| Botões | `.press`: afundam no clique e voltam com leve mola |
+| Toasts | `.animate-toast`, entrada com mola |
+| Tema | crossfade claro/escuro via View Transitions |
 
 Acessibilidade e robustez:
 

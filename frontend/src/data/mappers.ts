@@ -1,4 +1,5 @@
-import type { Category, CreditCardRef, RecurringTransaction, Transaction } from '@/types/api'
+import type { Category, CreditCardRef, RecurringTransaction, Transaction, YearMonth } from '@/types/api'
+import { dueDateOf } from '@/lib/creditCard'
 import { addMonths, dayIn } from '@/lib/month'
 import { notFound } from './errors'
 import { fromCents } from './money'
@@ -35,6 +36,7 @@ export function toTransaction(db: Database, record: TransactionRecord): Transact
     description: record.description,
     amount: fromCents(record.amount),
     date: record.date,
+    paymentDate: paymentDateOf(db, record),
     notes: record.notes,
     category: toCategory(findCategory(db, record.categoryId)),
     paymentMethod: record.paymentMethod,
@@ -69,8 +71,34 @@ export function nextMonthOf(record: RecurringRecord): string {
   return record.generatedThrough ? addMonths(record.generatedThrough, 1) : record.startMonth
 }
 
-/** Mais recentes primeiro (data e, no mesmo dia, criação). */
+/**
+ * Mês em que o lançamento pesa no caixa: o da fatura, nas compras no crédito
+ * (a compra de 06/10 numa fatura que vence em novembro conta em novembro);
+ * senão, o da própria data.
+ */
+export const paymentMonthOf = (record: TransactionRecord): YearMonth => record.invoiceMonth ?? record.date.slice(0, 7)
+
+/** Dia em que o lançamento pesa no caixa: o vencimento da fatura, no crédito; senão, a própria data. */
+export function paymentDateOf(db: Database, record: TransactionRecord): string {
+  if (!record.invoiceMonth) return record.date
+  const card = cardOf(db, record.creditCardId)
+  return card ? dueDateOf(card, record.invoiceMonth) : `${record.invoiceMonth}-01`
+}
+
+const newestFirst = (a: string, b: string) => (a < b ? 1 : a > b ? -1 : 0)
+
+/** Mais recentes primeiro pela data da compra (e, no mesmo dia, pela criação). */
 export function byNewest(a: TransactionRecord, b: TransactionRecord): number {
-  if (a.date !== b.date) return a.date < b.date ? 1 : -1
-  return a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : 0
+  return newestFirst(a.date, b.date) || newestFirst(a.createdAt, b.createdAt)
+}
+
+/** Ordenação das listas por mês: data de pagamento, depois data da compra e criação. */
+export function byPaymentDate(db: Database): (a: TransactionRecord, b: TransactionRecord) => number {
+  const dates = new Map<string, string>()
+  const dateOf = (t: TransactionRecord) => {
+    let date = dates.get(t.id)
+    if (!date) dates.set(t.id, (date = paymentDateOf(db, t)))
+    return date
+  }
+  return (a, b) => newestFirst(dateOf(a), dateOf(b)) || byNewest(a, b)
 }

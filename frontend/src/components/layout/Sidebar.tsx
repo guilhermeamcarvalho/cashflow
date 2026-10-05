@@ -39,7 +39,7 @@ export function Sidebar({ className }: { className?: string }) {
           type="button"
           onClick={openCreate}
           title="Novo lançamento (Ctrl+N)"
-          className="flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-primary text-sm font-medium whitespace-nowrap text-on-primary shadow-xs transition-colors hover:bg-primary-hover lg:justify-start lg:px-3"
+          className="press flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-primary text-sm font-medium whitespace-nowrap text-on-primary shadow-xs hover:bg-primary-hover lg:justify-start lg:px-3"
         >
           <Plus className="size-4 shrink-0" strokeWidth={2.5} aria-hidden />
           <span className="hidden flex-1 text-left lg:inline">Novo lançamento</span>
@@ -51,7 +51,13 @@ export function Sidebar({ className }: { className?: string }) {
 
       <nav className="no-scrollbar flex flex-1 flex-col gap-0.5 overflow-y-auto px-3 py-1">
         {SIDEBAR_MAIN.map((item, index) => (
-          <SidebarLink key={item.to} item={item} active={item.match(pathname)} shortcut={`Ctrl+${index + 1}`} />
+          <SidebarLink
+            key={item.to}
+            item={item}
+            active={item.match(pathname)}
+            shortcut={`Ctrl+${index + 1}`}
+            layer={`nav-item-${index}`}
+          />
         ))}
       </nav>
 
@@ -65,7 +71,7 @@ export function Sidebar({ className }: { className?: string }) {
           <span className="flex size-5 shrink-0 items-center justify-center">{theme.icon}</span>
           <span className="hidden truncate lg:inline">{theme.label}</span>
         </button>
-        <SidebarLink item={SETTINGS} active={SETTINGS.match(pathname)} shortcut="Ctrl+," />
+        <SidebarLink item={SETTINGS} active={SETTINGS.match(pathname)} shortcut="Ctrl+," layer="nav-item-settings" />
         <Link
           to="/settings"
           title={profile?.name || 'Perfil'}
@@ -83,15 +89,39 @@ export function Sidebar({ className }: { className?: string }) {
 
 const itemClass = (active: boolean) =>
   clsx(
-    'flex h-9 w-full items-center justify-center gap-3 rounded-lg px-2 text-sm transition-colors lg:justify-start lg:px-2.5',
-    active ? 'bg-surface-3 font-medium text-ink' : 'text-ink-2 hover:bg-surface-3/70 hover:text-ink',
+    'relative flex h-9 w-full items-center justify-center gap-3 rounded-lg px-2 text-sm transition-colors lg:justify-start lg:px-2.5',
+    active ? 'font-medium text-ink' : 'text-ink-2 hover:bg-surface-3/70 hover:text-ink',
   )
 
-function SidebarLink({ item, active, shortcut }: { item: NavItem; active: boolean; shortcut: string }) {
+interface SidebarLinkProps {
+  item: NavItem
+  active: boolean
+  shortcut: string
+  /** Nome de transição do conteúdo: fica numa camada acima do indicador enquanto ele desliza. */
+  layer: string
+}
+
+function SidebarLink({ item, active, shortcut, layer }: SidebarLinkProps) {
   return (
-    <NavLink to={item.to} end={item.to === '/'} title={`${item.label} (${shortcut})`} className={itemClass(active)}>
-      <item.icon className={clsx('size-[1.125rem] shrink-0', active && 'text-accent')} strokeWidth={2} aria-hidden />
-      <span className="hidden truncate lg:inline">{item.label}</span>
+    <NavLink
+      to={item.to}
+      end={item.to === '/'}
+      viewTransition
+      title={`${item.label} (${shortcut})`}
+      className={itemClass(active)}
+    >
+      {/* Fundo do item ativo: com o mesmo view-transition-name, desliza de um item para o outro. */}
+      {active && (
+        <span className="absolute inset-0 rounded-lg bg-surface-3" style={{ viewTransitionName: 'nav-indicator' }} aria-hidden />
+      )}
+      <span className="relative flex min-w-0 items-center gap-3" style={{ viewTransitionName: layer }}>
+        <item.icon
+          className={clsx('size-[1.125rem] shrink-0 transition-colors', active && 'text-accent')}
+          strokeWidth={2}
+          aria-hidden
+        />
+        <span className="hidden truncate lg:inline">{item.label}</span>
+      </span>
     </NavLink>
   )
 }

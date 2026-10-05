@@ -43,7 +43,7 @@ export default function SettingsPage() {
     <>
       <PageHeader title="Ajustes" description="Perfil, dados e preferências do aplicativo." />
 
-      <div className="flex max-w-3xl flex-col gap-4">
+      <div className="stagger flex max-w-3xl flex-col gap-4">
         <Card className="animate-rise flex flex-col gap-4 p-5 sm:flex-row sm:items-center">
           <Avatar name={profile?.name ?? ''} size="lg" />
           <div className="min-w-0 flex-1">

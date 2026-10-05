@@ -37,12 +37,17 @@ export function TransactionRow({ transaction, onSelect, showDate = false }: Tran
           <span className="flex min-w-0 items-center gap-1.5 text-[0.8125rem] text-ink-3">
             <span className="truncate">{category.name}</span>
             <PaymentTag transaction={transaction} />
-            {showDate && <span className="shrink-0 sm:hidden">· {formatShortDate(transaction.date)}</span>}
+            {transaction.paymentDate !== transaction.date && (
+              <span className="shrink-0">· compra em {formatShortDate(transaction.date)}</span>
+            )}
+            {showDate && transaction.paymentDate === transaction.date && (
+              <span className="shrink-0 sm:hidden">· {formatShortDate(transaction.date)}</span>
+            )}
           </span>
         </span>
         {showDate && (
           <span className="num hidden w-20 shrink-0 text-right text-[0.8125rem] text-ink-3 sm:block">
-            {formatShortDate(transaction.date)}
+            {formatShortDate(transaction.paymentDate)}
           </span>
         )}
         <span

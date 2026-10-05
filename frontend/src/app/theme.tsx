@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
+import { flushSync } from 'react-dom'
 
 export type ThemePreference = 'system' | 'light' | 'dark'
 
@@ -40,7 +41,18 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   }, [preference])
 
   const setPreference = useCallback((next: ThemePreference) => {
-    setPreferenceState(next)
+    // Crossfade entre os temas (View Transitions), quando o navegador suporta.
+    const root = document.documentElement
+    if (document.startViewTransition && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      root.dataset.themeSwitching = ''
+      const transition = document.startViewTransition(() => {
+        flushSync(() => setPreferenceState(next))
+        apply(next)
+      })
+      void transition.finished.finally(() => delete root.dataset.themeSwitching)
+    } else {
+      setPreferenceState(next)
+    }
     try {
       localStorage.setItem(STORAGE_KEY, next)
     } catch {

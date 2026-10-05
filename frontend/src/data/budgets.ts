@@ -1,17 +1,17 @@
 import type { Budget, BudgetInput, BudgetOverview, YearMonth } from '@/types/api'
 import { newId, timestamp } from './clock'
 import { businessRule, notFound } from './errors'
-import { findCategory, toCategory } from './mappers'
+import { findCategory, paymentMonthOf, toCategory } from './mappers'
 import { fromCents, percentOf } from './money'
 import { generateDue } from './recurring'
 import type { BudgetRecord, Database } from './schema'
 import { read, write } from './store'
 import { Validator } from './validation'
 
-/** Gasto (em centavos) de uma categoria de despesa no mês. */
+/** Gasto (em centavos) de uma categoria de despesa no mês (compras no crédito contam no mês da fatura). */
 function spentIn(db: Database, categoryId: string, month: YearMonth): number {
   return db.transactions
-    .filter((t) => t.type === 'EXPENSE' && t.categoryId === categoryId && t.date.startsWith(month))
+    .filter((t) => t.type === 'EXPENSE' && t.categoryId === categoryId && paymentMonthOf(t) === month)
     .reduce((sum, t) => sum + t.amount, 0)
 }
 

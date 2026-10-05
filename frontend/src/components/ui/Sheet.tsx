@@ -1,5 +1,6 @@
+import clsx from 'clsx'
 import { X } from 'lucide-react'
-import { useEffect, useId, useRef, type ReactNode } from 'react'
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 
 interface SheetProps {
@@ -12,11 +13,22 @@ interface SheetProps {
 /**
  * Painel modal: sobe da parte inferior no celular e aparece centralizado no
  * desktop. Fecha com Esc ou clique fora; trava a rolagem da página enquanto aberto.
+ * Ao fechar, continua na tela até terminar a animação de saída.
  */
 export function Sheet({ open, onClose, title, children }: SheetProps) {
   const titleId = useId()
   const panelRef = useRef<HTMLDivElement>(null)
   const onCloseRef = useRef(onClose)
+  const [mounted, setMounted] = useState(open)
+  if (open && !mounted) setMounted(true)
+  const closing = mounted && !open
+
+  // Durante a saída o pai já não manda o conteúdo: mostra o último recebido.
+  const [lastContent, setLastContent] = useState({ title, children })
+  if (open && (lastContent.title !== title || lastContent.children !== children)) {
+    setLastContent({ title, children })
+  }
+  const content = open ? { title, children } : lastContent
 
   useEffect(() => {
     onCloseRef.current = onClose
@@ -44,23 +56,33 @@ export function Sheet({ open, onClose, title, children }: SheetProps) {
     }
   }, [open])
 
-  if (!open) return null
+  if (!mounted) return null
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-6">
-      <div className="scrim animate-fade absolute inset-0" onClick={onClose} aria-hidden />
+      <div
+        className={clsx('scrim absolute inset-0', closing ? 'animate-fade-out' : 'animate-fade')}
+        onClick={closing ? undefined : onClose}
+        aria-hidden
+      />
       <div
         ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
         tabIndex={-1}
-        className="popover animate-sheet relative flex max-h-[92dvh] w-full max-w-lg flex-col rounded-t-3xl outline-none sm:rounded-2xl"
+        onAnimationEnd={(event) => {
+          if (closing && event.target === event.currentTarget) setMounted(false)
+        }}
+        className={clsx(
+          'popover relative flex max-h-[92dvh] w-full max-w-lg flex-col rounded-t-3xl outline-none sm:rounded-2xl',
+          closing ? 'animate-sheet-out pointer-events-none' : 'animate-sheet',
+        )}
       >
         <div className="mx-auto mt-2 h-1 w-9 shrink-0 rounded-full bg-line-strong sm:hidden" aria-hidden />
         <header className="flex shrink-0 items-center justify-between gap-3 border-b border-line px-5 py-3.5">
           <h2 id={titleId} className="text-base font-semibold">
-            {title}
+            {content.title}
           </h2>
           <button
             type="button"
@@ -72,7 +94,7 @@ export function Sheet({ open, onClose, title, children }: SheetProps) {
             <X className="size-4" />
           </button>
         </header>
-        <div className="overflow-y-auto px-5 pt-5 pb-[calc(env(safe-area-inset-bottom)+1.25rem)]">{children}</div>
+        <div className="overflow-y-auto px-5 pt-5 pb-[calc(env(safe-area-inset-bottom)+1.25rem)]">{content.children}</div>
       </div>
     </div>,
     document.body,
